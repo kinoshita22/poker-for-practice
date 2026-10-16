@@ -14,6 +14,7 @@ from PySide6.QtQuickControls2 import QQuickStyle
 
 from bridge import AppBridge, ChipsBridge, GameBridge, registry
 from bridge.app_bridge import APP_NAME, APP_VERSION
+from services.game_controller import GameController
 from services.paths import qml_dir
 
 log = logging.getLogger(__name__)
@@ -34,6 +35,7 @@ class AppContext:
     app_bridge: AppBridge
     chips: ChipsBridge
     game: GameBridge
+    controller: GameController
     qml_warnings: list[str] = field(default_factory=list)
 
 
@@ -53,8 +55,10 @@ def load_ui(app: QGuiApplication) -> AppContext:
         engine=engine,
         app_bridge=AppBridge(engine),
         chips=ChipsBridge(parent=engine),
-        game=GameBridge(engine),
+        game=(game := GameBridge(engine)),
+        controller=GameController(game.set_view, parent=engine),
     )
+    game.attach(context.controller)
 
     def on_warnings(warnings: list[QQmlError]) -> None:
         for warning in warnings:

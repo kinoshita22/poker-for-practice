@@ -7,7 +7,8 @@ import QtQuick.Layouts
 // ``actions`` is the legal-action map published by the Game bridge (empty when
 // it is not the human's turn). Every submission carries ``actions.step`` so the
 // engine can reject stale or duplicate actions; the panel also locks itself
-// after a click until a new decision point arrives.
+// after a click until a new decision point (``actions.key``: hand and step)
+// arrives.
 Rectangle {
     id: root
 
@@ -19,8 +20,8 @@ Rectangle {
     signal actionRequested(string kind, int amount, int step)
 
     readonly property bool active: actions.step !== undefined
-    property int submittedStep: -1
-    readonly property bool ready: active && submittedStep !== actions.step
+    property string submittedKey: ""
+    readonly property bool ready: active && submittedKey !== actions.key
     readonly property bool canSize: ready && (actions.canBet || actions.canRaise)
     property int raiseTo: 0
 
@@ -30,8 +31,10 @@ Rectangle {
     onActionsChanged: resetAmount()
     Component.onCompleted: resetAmount()
 
+    // Reads ``actions`` directly: this runs before bindings such as ``active``
+    // have been re-evaluated for the new value.
     function resetAmount() {
-        if (active)
+        if (actions.step !== undefined)
             raiseTo = actions.minTo
     }
 
@@ -54,7 +57,7 @@ Rectangle {
     function submit(kind, amount) {
         if (!ready)
             return
-        submittedStep = actions.step
+        submittedKey = actions.key
         actionRequested(kind, amount || 0, actions.step)
     }
 

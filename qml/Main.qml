@@ -68,11 +68,28 @@ ApplicationWindow {
         }
     }
 
-    Component { id: tableScreen; TableScreen { onBackRequested: window.showScreen("menu") } }
+    Component {
+        id: tableScreen
+        TableScreen {
+            onBackRequested: window.showScreen("menu")
+            onActionRequested: (kind, amount, step) => Game.submitAction(kind, amount, step)
+            onDealRequested: Game.deal()
+            onNewSessionRequested: window.showScreen("setup")
+        }
+    }
     Component { id: statisticsScreen; StatisticsScreen { onBackRequested: window.showScreen("menu") } }
     Component { id: historyScreen; HistoryScreen { onBackRequested: window.showScreen("menu") } }
     Component { id: settingsScreen; SettingsScreen { onBackRequested: window.showScreen("menu") } }
-    Component { id: setupScreen; SessionSetupScreen { onBackRequested: window.showScreen("menu") } }
+    Component {
+        id: setupScreen
+        SessionSetupScreen {
+            onBackRequested: window.showScreen("menu")
+            onStartRequested: config => {
+                if (Game.startSession(config))
+                    window.showScreen("table")
+            }
+        }
+    }
     Component { id: galleryScreen; GalleryScreen { onBackRequested: window.showScreen("menu") } }
 
     // Developer shortcut to the card/chip gallery.

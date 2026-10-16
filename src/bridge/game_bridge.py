@@ -4,23 +4,29 @@ from __future__ import annotations
 
 from dataclasses import asdict
 
-from PySide6.QtCore import Property, QObject, Signal
+from PySide6.QtCore import Property, QObject, Signal, Slot
 from PySide6.QtQml import QmlNamedElement, QmlSingleton, QQmlEngine
 
 from bridge.player_model import PlayerListModel
 from bridge.registry import QML_IMPORT_MAJOR_VERSION, QML_IMPORT_NAME, singleton_instance
+from services.game_session import SessionConfig, SessionError
 from services.table_view import ActionView, TableView
 
 __all__ = ["GameBridge", "QML_IMPORT_NAME", "QML_IMPORT_MAJOR_VERSION"]
 
 
-def actions_to_qml(actions: ActionView | None) -> dict:
-    """Legal actions as a QML map; empty when the human is not to act."""
+def actions_to_qml(actions: ActionView | None, hand_number: int = 0) -> dict:
+    """Legal actions as a QML map; empty when the human is not to act.
+
+    ``key`` identifies the decision point across hands (the engine's step
+    counter restarts every hand).
+    """
     if actions is None:
         return {}
     data = asdict(actions)
     data["presets"] = [{"label": p.label, "amount": p.amount} for p in actions.presets]
     return {
+        "key": f"{hand_number}:{data['step']}",
         "step": data["step"],
         "canFold": data["can_fold"],
         "canCheck": data["can_check"],
@@ -40,15 +46,57 @@ def actions_to_qml(actions: ActionView | None) -> dict:
 @QmlNamedElement("Game")
 @QmlSingleton
 class GameBridge(QObject):
-    """Publishes :class:`TableView` snapshots. Holds no poker rules."""
+    """Publishes :class:`TableView` snapshots and forwards player commands to
+    the game controller. Holds no poker rules."""
 
     viewChanged = Signal()
+    errorOccurred = Signal(str)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._players = PlayerListModel(self)
         self._view = TableView()
         self._actions: dict = {}
+        self._controller = None
+
+    def attach(self, controller) -> None:
+        """Connect the GameController that executes commands."""
+        self._controller = controller
+        controller.errorOccurred.connect(self.errorOccurred)
+
+    # ---------------------------------------------------------------- commands
+
+    @Slot("QVariantMap", result=bool)
+    def startSession(self, options: dict) -> bool:
+        try:
+            config = SessionConfig(
+                opponents=int(options.get("opponents", 3)),
+                starting_stack=int(options.get("startingStack", 2000)),
+                small_blind=int(options.get("smallBlind", 10)),
+                big_blind=int(options.get("bigBlind", 20)),
+                opponent_style=str(options.get("opponentStyle", "mixed")),
+                difficulty=str(options.get("difficulty", "normal")),
+            )
+            config.validate()
+        except (SessionError, ValueError, TypeError) as exc:
+            self.errorOccurred.emit(str(exc))
+            return False
+        self._controller.start_session(config)
+        return True
+
+    @Slot(str, int, int, result=bool)
+    def submitAction(self, kind: str, amount: int, step: int) -> bool:
+        return self._controller.submit_action(kind, amount, step)
+
+    @Slot(result=bool)
+    def deal(self) -> bool:
+        return self._controller.deal()
+
+    @Slot()
+    def endSession(self) -> None:
+        self._controller.end_session()
+
+    # ---------------------------------------------------------------- state
 
     @staticmethod
     def create(engine: QQmlEngine) -> "GameBridge":
@@ -61,7 +109,7 @@ class GameBridge(QObject):
     def set_view(self, view: TableView) -> None:
         """Publish a new snapshot (rows update in place)."""
         self._view = view
-        self._actions = actions_to_qml(view.actions)
+        self._actions = actions_to_qml(view.actions, view.hand_number)
         self._players.set_seats(sorted(view.seats, key=lambda s: s.slot))
         self.viewChanged.emit()
 
@@ -123,3 +171,11 @@ class GameBridge(QObject):
     @Property(bool, notify=viewChanged)
     def sessionActive(self) -> bool:
         return self._view.session_active
+
+    @Property(bool, notify=viewChanged)
+    def canDeal(self) -> bool:
+        return self._view.can_deal
+
+    @Property(bool, notify=viewChanged)
+    def sessionOver(self) -> bool:
+        return self._view.session_over

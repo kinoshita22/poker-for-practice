@@ -11,6 +11,8 @@ Rectangle {
 
     signal backRequested()
     signal actionRequested(string kind, int amount, int step)
+    signal dealRequested()
+    signal newSessionRequested()
 
     color: Theme.background
 
@@ -52,8 +54,23 @@ Rectangle {
                 font.pixelSize: Theme.fontSizeLarge - 2
                 color: Theme.goldBright
             }
-            // Balances the left side so the message stays centred.
-            Item { Layout.preferredWidth: 160 }
+            ToolbarButton {
+                objectName: "newSessionButton"
+                visible: Game.sessionOver
+                text: "New Session"
+                onClicked: root.newSessionRequested()
+            }
+            ActionButton {
+                objectName: "dealButton"
+                Layout.preferredHeight: 34
+                implicitWidth: 132
+                variant: "primary"
+                text: Game.handNumber === 0 ? "Deal" : "Next Hand"
+                shortcutHint: ""
+                enabled: Game.canDeal
+                visible: Game.canDeal
+                onClicked: root.dealRequested()
+            }
         }
 
         Rectangle {
@@ -201,6 +218,50 @@ Rectangle {
         bigBlind: Game.bigBlind
         onActionRequested: (kind, amount, step) => root.actionRequested(kind, amount, step)
     }
+
+    // Rejected actions and other errors, shown briefly over the table.
+    Rectangle {
+        id: toast
+        objectName: "errorToast"
+        property string text: ""
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: actionPanel.top
+        anchors.bottomMargin: Theme.spacing
+        width: toastText.implicitWidth + 32
+        height: toastText.implicitHeight + 14
+        radius: height / 2
+        color: "#e0301a17"
+        border.color: Theme.accentRed
+        opacity: 0
+        visible: opacity > 0
+
+        Text {
+            id: toastText
+            anchors.centerIn: parent
+            text: toast.text
+            font.family: Theme.fontBody
+            font.pixelSize: Theme.fontSizeBody
+            color: Theme.textPrimary
+        }
+
+        SequentialAnimation {
+            id: toastAnimation
+            NumberAnimation { target: toast; property: "opacity"; to: 1; duration: Theme.durationFast }
+            PauseAnimation { duration: 2600 }
+            NumberAnimation { target: toast; property: "opacity"; to: 0; duration: 400 }
+        }
+    }
+
+    Connections {
+        target: Game
+        function onErrorOccurred(message) {
+            toast.text = message
+            toastAnimation.restart()
+        }
+    }
+
+    // Space / Enter deals the next hand.
+    Shortcut { sequences: ["Space", "Return"]; enabled: Game.canDeal; onActivated: root.dealRequested() }
 
     // Keyboard shortcuts for the betting actions.
     Shortcut { sequence: "F"; enabled: actionPanel.ready; onActivated: actionPanel.fold() }

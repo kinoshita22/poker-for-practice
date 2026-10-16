@@ -105,4 +105,6 @@ class TableView:
     actions: ActionView | None = None  # set only when the human is to act
     hand_in_progress: bool = False
     session_active: bool = False
+    can_deal: bool = False  # a new hand may be started now
+    session_over: bool = False  # the human or every opponent is out of chips
     winning_cards: tuple[str, ...] = field(default=())  # board cards to highlight

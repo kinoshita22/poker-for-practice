@@ -124,3 +124,32 @@ def test_seats_stay_inside_the_window(ui, qtbot, size):
         assert top_left.x() >= 0 and top_left.y() >= -1
         assert top_left.x() + seat.width() <= area.width() + 1
         assert top_left.y() + seat.height() <= area.height() + 1
+
+
+def test_panel_unlocks_for_same_step_in_next_hand(ui, qtbot):
+    """Regression: the engine step restarts each hand, so the lock must be per hand."""
+    from dataclasses import replace
+
+    view = preview_table(6)
+    window = show_table(ui, qtbot, view)
+    find(window, "checkCallButton").clicked.emit()
+    assert not find(window, "checkCallButton").isEnabled()
+    ui[0].game.set_view(replace(view, hand_number=43))
+    qtbot.wait(50)
+    assert find(window, "checkCallButton").isEnabled()
+
+
+def test_raise_amount_resets_when_new_decision_arrives(ui, qtbot):
+    """Regression: the amount must follow the new minimum, not keep a stale value."""
+    from dataclasses import replace
+
+    view = preview_table(6)
+    window = show_table(ui, qtbot, view)
+    panel = find(window, "actionPanel")
+    ui[0].game.set_view(replace(view, actions=None))
+    qtbot.wait(20)
+    new_actions = replace(view.actions, step=9, min_to=1000)
+    ui[0].game.set_view(replace(view, actions=new_actions))
+    qtbot.wait(20)
+    assert panel.property("raiseTo") == 1000
+    assert ui[0].qml_warnings == []

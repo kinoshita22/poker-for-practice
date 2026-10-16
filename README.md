@@ -3,7 +3,7 @@
 A Texas Hold'em practice application for Windows built with Python, PySide6 and Qt Quick/QML.
 **Virtual chips only** — there is no real-money gambling, deposits or withdrawals.
 
-> Status: Phase 4 (engine, cards and chips, table UI). Gameplay wiring,
+> Status: Phase 5 (playable hands against placeholder calling opponents). Real
 > opponents and persistence are implemented in later phases.
 
 ## Requirements
@@ -59,6 +59,15 @@ python tools/screenshot.py out_dir --sizes 1024x640,1920x1080 --screens menu,tab
 ```
 
 Renders each screen offscreen at each size and exits non-zero if QML reported warnings.
+
+### UI walkthrough
+
+```bash
+python tools/walkthrough.py out_dir --hands 6
+```
+
+Plays hands through the real interface (clicking the same buttons a player would), saving a
+screenshot per street and per result, and fails on QML warnings or chip inconsistencies.
 
 ### Card and chip gallery
 

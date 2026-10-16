@@ -187,3 +187,37 @@ the gallery, screenshots (`tools/screenshot.py --preview hand|showdown|headsup|n
   submission carries the engine's action step; the panel locks after a click until the step
   changes, so double clicks cannot submit twice.
 - `SessionSetupScreen`: opponents (1–5), starting stack, blinds, opponent style, difficulty.
+
+## Engine ↔ QML (Phase 5)
+
+```
+QML ── Game.submitAction(kind, amount, step) ──► GameBridge ──► GameController ──► GameSession ──► HoldemHand
+ ▲                                                                    │ QTimer pacing
+ └──────────── Game properties / PlayerListModel ◄── set_view(TableView) ◄── build_view() ◄── HandPresenter(events)
+```
+
+- **`HandPresenter`** (`services/hand_presenter.py`) rebuilds the visible table by folding the
+  engine's event log one event at a time. The engine resolves an all-in run-out inside a single
+  `act()`; presentation follows behind it, so the UI can reveal the flop, turn, river, showdown
+  and pot awards at a human pace. Stored histories can be replayed with the same code.
+- **`GameSession`** (`services/game_session.py`, no Qt) owns the `Table`, seats the human at seat
+  0 and opponents in seats 1–5, applies human actions (rejecting stale steps), asks strategies for
+  opponent actions, and builds `TableView`s: visibility rules, bet presets (½, ¾, full pot raises
+  computed as `current bet + fraction × (pot + call)`), messages, deal/session-over flags. An
+  opponent strategy that returns an illegal action is logged and replaced by check/fold so the
+  table can never stall.
+- **`GameController`** (`services/game_controller.py`, QObject) paces everything with a single
+  single-shot `QTimer`: per-event pauses (`Timing`), randomized opponent "thinking", optional
+  auto-deal. Nothing sleeps or blocks the event loop. A generation counter discards callbacks
+  from an abandoned session.
+- **`GameBridge`** forwards `startSession`, `submitAction`, `deal`, `endSession` and publishes
+  views. The decision-point `key` (`"<hand>:<step>"`) locks the action panel after a click;
+  the engine's `expected_action_count` check rejects anything that still gets through, and the
+  rejection is shown as a toast.
+- **Opponents** see only `ai.observe(hand, seat)`: public information plus their own hole cards.
+  Phase 5 seats `PassiveStrategy` (check/call) everywhere; Phase 7 replaces it.
+
+### QA tools
+`tools/walkthrough.py OUT --hands N` drives the real UI (Play → Start Session → action buttons →
+Next Hand), screenshots each street and hand result, checks chip conservation and fails on QML
+warnings.
