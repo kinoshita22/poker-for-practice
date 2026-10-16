@@ -107,3 +107,44 @@ All chip amounts are `int`. `HoldemHand` verifies chip conservation when it dist
 - Randomized sessions (seeded) play hundreds of hands with random legal actions and assert
   chip conservation after every action, no negative stacks, no duplicate cards, pot awards
   equal to contributions and zero-sum results.
+
+## Cards and chips (Phase 3)
+
+### Playing cards: generated SVG assets
+`tools/generate_cards.py` writes `assets/cards/{2c..As}.svg` and `back.svg` (all original artwork).
+The generated files are committed so the app needs no build step;
+`tests/test_card_assets.py` fails if they drift from the generator.
+
+- Poker proportions 63 × 88 (viewBox 630 × 880); rounded corners, warm-white face gradient.
+- Rank indices are **stroke-drawn vector glyphs**, not font text, so cards render identically on
+  every system and never depend on platform card/suit glyphs.
+- Standard pip layouts (lower-half pips inverted; the seven's extra pip is in the upper half),
+  ornamental ace of spades, double-ended court figures (J/Q/K differ in headwear and held item;
+  suits differ in robe colour and band pattern), symmetrical lattice-and-medallion back.
+- Only SVG Tiny 1.2 features that Qt SVG supports (no `<pattern>`/`<clipPath>`: the back's lattice
+  is clipped geometrically in Python).
+
+`qml/components/PlayingCard.qml` shows a card: the body always keeps 63:88 inside whatever box it
+gets, `sourceSize` follows the on-screen size × device pixel ratio (crisp on high-DPI), and it
+offers face-up/face-down (3D flip via `Flipable`), unknown (`card: ""` → back), `highlighted`
+(gold ring + lift), `dimmed`, and `dealFrom(dx, dy, delay)`. `animated: false` disables motion.
+
+### Chips: QML Shapes, configurable colours
+Chip colours must be configurable, so chips are drawn in QML rather than as fixed assets:
+
+- `PokerChip.qml` — top view: body, six alternating edge inserts (one dashed stroke), dashed
+  inner ring, centre inlay with the denomination, lighting gradient. Labels hide below a legible
+  size (colour identifies the chip).
+- `ChipStack.qml` — one denomination in perspective. Lower chips draw only their edge band
+  (cylindrical shading, staggered inserts, seam); the top chip draws the full face, squashed.
+- `ChipPile.qml` — an amount as stacks (largest denomination left, ≤ 10 chips per stack), with
+  `animateFrom(dx, dy, delay)` for chip movement.
+
+The amount → chips breakdown is Python (`services/chips.py`, greedy, exact for any amount since a
+1-chip always exists) and reaches QML through the `Chips` singleton (`bridge/chips_bridge.py`),
+which also publishes the denomination colour scheme and signals changes. Breakdown is display only:
+the engine never sees chips.
+
+### Gallery
+`qml/screens/GalleryScreen.qml` shows all 52 cards, states, chips at several sizes, stacks and
+piles. Open it with **Ctrl+Shift+G** or `tools/screenshot.py --screens gallery`.

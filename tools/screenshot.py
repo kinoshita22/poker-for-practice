@@ -21,7 +21,7 @@ from PySide6.QtGui import QGuiApplication  # noqa: E402
 
 from services.application import configure_qt_application, load_ui  # noqa: E402
 
-ALL_SCREENS = ["menu", "table", "statistics", "history", "settings"]
+ALL_SCREENS = ["menu", "table", "statistics", "history", "settings", "gallery"]
 
 
 def wait(ms: int) -> None:

@@ -7,7 +7,7 @@ from bridge import AppBridge
 from bridge.app_bridge import APP_NAME, APP_VERSION
 from services.application import configure_qt_application, load_ui
 
-SCREENS = ["table", "statistics", "history", "settings", "menu"]
+SCREENS = ["table", "statistics", "history", "settings", "gallery", "menu"]
 
 
 @pytest.fixture
