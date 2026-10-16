@@ -20,10 +20,16 @@ from services.table_view import (
     ActionView,
     AnalysisEntry,
     BetPreset,
-    PotView,
-    SeatView,
     TableView,
     display_slots,
+)
+from services.wording import says
+from services.view_builder import (
+    RosterSeat,
+    pot_views,
+    result_message,
+    seat_views,
+    winning_board_cards,
 )
 
 log = logging.getLogger(__name__)
@@ -245,69 +251,21 @@ class GameSession:
 
     # ---------------------------------------------------------------- view
 
+    def roster(self) -> list[RosterSeat]:
+        return [
+            RosterSeat(s.seat, s.name, s.stack, "" if s.seat == HUMAN_SEAT else self.styles[s.seat].capitalize())
+            for s in self.table.seats
+        ]
+
     def build_view(self) -> TableView:
         hand = self.hand
         p = self.presenter
-        in_hand = p.seats if hand is not None else {}
-        winners = p.winners
-        seats = []
-        for table_seat in self.table.seats:
-            seat = table_seat.seat
-            presented = in_hand.get(seat)
-            human = seat == HUMAN_SEAT
-            style = "" if human else self.styles[seat].capitalize()
-            if presented is None:
-                seats.append(
-                    SeatView(
-                        seat=seat, slot=self.slots[seat], name=table_seat.name,
-                        stack=table_seat.stack, in_hand=False, busted=table_seat.stack == 0,
-                        is_human=human, style=style,
-                    )
-                )
-                continue
-            if presented.folded:
-                cards: tuple[str, ...] = ()
-            elif human or presented.revealed:
-                cards = tuple(c.code for c in presented.hole)
-            else:
-                cards = ("",) * len(presented.hole)
-            seats.append(
-                SeatView(
-                    seat=seat,
-                    slot=self.slots[seat],
-                    name=presented.name,
-                    stack=presented.stack,
-                    bet=presented.street_bet,
-                    cards=cards,
-                    folded=presented.folded,
-                    all_in=presented.all_in and not p.complete,
-                    busted=p.complete and presented.stack == 0,
-                    is_human=human,
-                    is_dealer=seat == p.button,
-                    is_small_blind=seat == p.small_blind_seat,
-                    is_big_blind=seat == p.big_blind_seat,
-                    to_act=hand is not None and self.caught_up and hand.to_act == seat,
-                    last_action=presented.last_action,
-                    is_winner=seat in winners,
-                    won_amount=presented.won,
-                    hand_label=presented.hand_label if presented.revealed else "",
-                    best_cards=tuple(c.code for c in presented.best_cards) if seat in winners else (),
-                    style=style,
-                )
-            )
-
+        to_act = hand.to_act if hand is not None and self.caught_up else None
         names = {s.seat: s.name for s in self.table.seats}
-        pots = p.pots()
-        pot_views = tuple(
-            PotView("Main pot" if i == 0 else f"Side pot {i}", pot.amount,
-                    tuple(names[s] for s in sorted(pot.eligible)))
-            for i, pot in enumerate(pots)
-        )
-        board_codes = {c.code for c in p.board}
         return TableView(
-            seats=tuple(seats),
+            seats=seat_views(p, self.roster(), self.slots, HUMAN_SEAT, to_act),
             board=tuple(c.code for c in p.board),
-            pots=pot_views,
+            pots=pot_views(p, names),
             total_pot=p.total_pot(),
             street=p.street.value if p.street else "",
             hand_number=self.table.hand_number,
@@ -319,7 +277,7 @@ class GameSession:
             session_active=True,
             can_deal=self.can_start_hand,
             session_over=self.session_over,
-            winning_cards=tuple(sorted(c.code for c in p.winning_cards() if c.code in board_codes)),
+            winning_cards=winning_board_cards(p),
             analysis=self._analysis(),
         )
 
@@ -384,23 +342,4 @@ class GameSession:
         return ""
 
     def result_message(self) -> str:
-        p = self.presenter
-        if not p.awards:
-            return ""
-        names = {seat: s.name for seat, s in p.seats.items()}
-        main = p.awards[0]
-        total_by_winner: dict[int, int] = {}
-        for seat in p.winners:
-            total_by_winner[seat] = p.seats[seat].won
-        if len(main.winners) > 1:
-            who = " and ".join(names[s] for s in main.winners)
-            text = f"Split pot: {who}"
-        else:
-            winner = main.winners[0]
-            text = f"{names[winner]} wins {total_by_winner[winner]:,}"
-        if main.hand_label:
-            text += f" with {main.hand_label}"
-        side_winners = [s for a in p.awards[1:] for s in a.winners if s not in main.winners]
-        for seat in dict.fromkeys(side_winners):
-            text += f"; {names[seat]} wins a side pot"
-        return text
+        return result_message(self.presenter)

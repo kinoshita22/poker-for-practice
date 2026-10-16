@@ -96,9 +96,11 @@ class GameController(QObject):
         *,
         timing: Timing = Timing(),
         strategy_factory: StrategyFactory = heuristic_factory,
+        recorder=None,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
+        self.recorder = recorder  # HistoryRecorder or None
         self._publish_view = publish
         self.timing = timing
         self.strategy_factory = strategy_factory
@@ -117,6 +119,8 @@ class GameController(QObject):
         self._generation += 1
         self._timer.stop()
         self.session = GameSession(config, strategy_factory=self.strategy_factory)
+        if self.recorder is not None:
+            self.recorder.session_started(self.session)
         self._rng = random.Random(config.seed)
         log.info("Session started: %s", config)
         self.deal()
@@ -133,6 +137,8 @@ class GameController(QObject):
     def end_session(self) -> None:
         self._generation += 1
         self._timer.stop()
+        if self.recorder is not None:
+            self.recorder.session_ended()
         self.session = None
         self._publish_view(TableView())
 

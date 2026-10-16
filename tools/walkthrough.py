@@ -132,6 +132,26 @@ def main() -> int:
         assert click(window, "dealButton"), "Next Hand button"
 
     print(f"Hands: {hands_done}, human decisions: {decisions}")
+
+    # Persistence screens: statistics, history detail and a replay.
+    for screen in ("statistics", "history"):
+        window.showScreen(screen)
+        wait(500)
+        shot(screen)
+    if click(window, "replayButton"):
+        wait(500)
+        for _ in range(4):
+            click(window, "replayForward")
+        wait(400)
+        shot("replay_step")
+        replay = context.replay
+        replay.seek(replay.property("steps") - 1)
+        wait(400)
+        shot("replay_end")
+    stats = context.store.statistics()
+    if stats.hands != hands_done:
+        print(f"Recorded hands {stats.hands} != played {hands_done}", file=sys.stderr)
+        return 1
     if context.qml_warnings:
         print("QML warnings:", *context.qml_warnings, sep="\n  ", file=sys.stderr)
         return 1

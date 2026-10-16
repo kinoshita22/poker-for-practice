@@ -28,6 +28,7 @@ ApplicationWindow {
             "history": historyScreen,
             "settings": settingsScreen,
             "setup": setupScreen,
+            "replay": replayScreen,
             "gallery": galleryScreen
         }[name]
         if (name === "menu") {
@@ -74,20 +75,43 @@ ApplicationWindow {
         TableScreen {
             onBackRequested: window.showScreen("menu")
             onActionRequested: (kind, amount, step) => Game.submitAction(kind, amount, step)
-            animated: App.animationsEnabled
+            animated: Settings.animationsEnabled
             onDealRequested: Game.deal()
             onNewSessionRequested: window.showScreen("setup")
             onSessionEnded: window.showScreen("menu")
         }
     }
     Component { id: statisticsScreen; StatisticsScreen { onBackRequested: window.showScreen("menu") } }
-    Component { id: historyScreen; HistoryScreen { onBackRequested: window.showScreen("menu") } }
+    Component {
+        id: historyScreen
+        HistoryScreen {
+            onBackRequested: window.showScreen("menu")
+            onReplayRequested: handId => {
+                if (Replay.load(handId))
+                    window.showScreen("replay")
+            }
+        }
+    }
+    Component {
+        id: replayScreen
+        TableScreen {
+            game: Replay
+            replayMode: true
+            animated: false
+            onBackRequested: {
+                Replay.stop()
+                window.showScreen("history")
+            }
+        }
+    }
     Component { id: settingsScreen; SettingsScreen { onBackRequested: window.showScreen("menu") } }
     Component {
         id: setupScreen
         SessionSetupScreen {
+            defaults: Settings.sessionDefaults
             onBackRequested: window.showScreen("menu")
             onStartRequested: config => {
+                Settings.saveSessionDefaults(config)
                 if (Game.startSession(config))
                     window.showScreen("table")
             }

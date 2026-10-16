@@ -63,9 +63,9 @@ def test_exposed_cards_visible_before_runout_completes():
 def test_animation_preference_changes_pacing(ui):
     context, _ = ui
     context.controller.timing = Timing()
-    context.app_bridge.setProperty("animationsEnabled", False)
+    context.settings.setProperty("animationsEnabled", False)
     assert context.controller.timing.scale == REDUCED_MOTION_SCALE
-    context.app_bridge.setProperty("animationsEnabled", True)
+    context.settings.setProperty("animationsEnabled", True)
     assert context.controller.timing.scale == 1.0
 
 

@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import logging
 import signal
+import sqlite3
 import sys
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from PySide6.QtCore import QCoreApplication, QTimer, QUrl
 from PySide6.QtGui import QGuiApplication
@@ -14,8 +16,15 @@ from PySide6.QtQuickControls2 import QQuickStyle
 
 from bridge import AppBridge, ChipsBridge, GameBridge, registry
 from bridge.app_bridge import APP_NAME, APP_VERSION
+from bridge.replay_bridge import ReplayBridge
+from bridge.settings_bridge import SettingsBridge
+from bridge.stats_bridge import HistoryBridge, StatsBridge
+from services.database import DB_FILE_NAME, Database, DatabaseError
 from services.game_controller import GameController
-from services.paths import qml_dir
+from services.history import HistoryStore
+from services.paths import qml_dir, user_data_dir
+from services.recorder import HistoryRecorder
+from services.settings import AUTO_DEAL_DELAY_MS, CHIP_SCHEMES, AppSettings
 
 log = logging.getLogger(__name__)
 
@@ -36,7 +45,20 @@ class AppContext:
     chips: ChipsBridge
     game: GameBridge
     controller: GameController
+    db: Database
+    store: HistoryStore
+    recorder: HistoryRecorder
+    settings: SettingsBridge
+    stats: StatsBridge
+    history: HistoryBridge
+    replay: ReplayBridge
+    notice: str = ""  # shown once at startup (e.g. database problems)
     qml_warnings: list[str] = field(default_factory=list)
+
+    def shutdown(self) -> None:
+        """Close the open session and the database."""
+        self.controller.end_session()
+        self.db.close()
 
 
 def configure_qt_application() -> None:
@@ -48,27 +70,74 @@ def configure_qt_application() -> None:
     QQuickStyle.setStyle("Basic")
 
 
-def load_ui(app: QGuiApplication) -> AppContext:
-    """Create the QML engine, expose bridge objects and load the main window."""
+def open_database(path: Path | None = None) -> tuple[Database, str]:
+    """Open (or create) the history database; never fails.
+
+    Returns the database and a notice for the user when something went wrong:
+    a corrupted file is moved aside and replaced, and an unusable location
+    falls back to an in-memory database for this run.
+    """
+    path = path or user_data_dir() / DB_FILE_NAME
+    try:
+        db = Database(path)
+    except (sqlite3.Error, OSError, DatabaseError) as exc:
+        log.exception("Cannot open %s; history will not be saved this time", path)
+        return Database(Path(":memory:")), f"Hand history cannot be saved this session ({exc})."
+    if db.recovered_from is not None:
+        return db, (f"The history database was damaged and has been reset. "
+                    f"The old file was kept as {db.recovered_from.name}.")
+    return db, ""
+
+
+def load_ui(app: QGuiApplication, db_path: Path | None = None) -> AppContext:
+    """Create services, expose bridge objects to QML and load the main window."""
     engine = QQmlApplicationEngine()
+    db, notice = open_database(db_path)
+    store = HistoryStore(db)
+    try:
+        store.close_open_sessions()
+    except sqlite3.Error:
+        log.exception("Could not close stale sessions")
+
+    game = GameBridge(engine)
+    recorder = HistoryRecorder(store)
+    controller = GameController(game.set_view, recorder=recorder, parent=engine)
+    stats = StatsBridge(store, lambda: recorder.session_id, parent=engine)
     context = AppContext(
         engine=engine,
         app_bridge=AppBridge(engine),
         chips=ChipsBridge(parent=engine),
-        game=(game := GameBridge(engine)),
-        controller=GameController(game.set_view, parent=engine),
+        game=game,
+        controller=controller,
+        db=db,
+        store=store,
+        recorder=recorder,
+        settings=SettingsBridge(store, parent=engine),
+        stats=stats,
+        history=HistoryBridge(store, parent=engine),
+        replay=ReplayBridge(store, parent=engine),
+        notice=notice,
     )
-    game.attach(context.controller)
-    context.app_bridge.animationsEnabledChanged.connect(context.controller.set_animations_enabled)
+    context.settings.recovery_message = notice
+    game.attach(controller)
+    recorder.on_error = game.errorOccurred.emit
+    recorder.on_recorded = stats.refresh
+
+    def apply_settings(settings: AppSettings) -> None:
+        context.chips.set_denominations(CHIP_SCHEMES[settings.chip_scheme])
+        controller.set_animations_enabled(settings.animations_enabled)
+        controller.auto_next_hand_ms = AUTO_DEAL_DELAY_MS if settings.auto_deal else None
+
+    context.settings.subscribe(apply_settings)
 
     def on_warnings(warnings: list[QQmlError]) -> None:
         for warning in warnings:
             context.qml_warnings.append(warning.toString())
 
     engine.warnings.connect(on_warnings)
-    registry.install(context.app_bridge)
-    registry.install(context.chips)
-    registry.install(context.game)
+    for bridge in (context.app_bridge, context.chips, game, context.settings, stats,
+                   context.history, context.replay):
+        registry.install(bridge)
     context.app_bridge.quitRequested.connect(app.quit)
 
     engine.addImportPath(str(qml_dir()))
@@ -116,6 +185,7 @@ def run(argv: list[str] | None = None) -> int:
 
     install_quit_on_signals(app)
     exit_code = app.exec()
+    context.shutdown()
     log.info("Exiting with code %s", exit_code)
     del context
     return exit_code

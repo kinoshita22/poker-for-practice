@@ -111,6 +111,27 @@ Rectangle {
         }
     }
 
+    Rectangle {
+        objectName: "startupNotice"
+        anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: Theme.spacingLarge }
+        visible: Settings.recoveryNotice !== ""
+        width: Math.min(parent.width - 48, noticeText.implicitWidth + 32)
+        height: noticeText.implicitHeight + 16
+        radius: Theme.radius
+        color: "#3a2a1a"
+        border.color: Theme.goldDim
+        Text {
+            id: noticeText
+            anchors.centerIn: parent
+            width: Math.min(implicitWidth, parent.parent.width - 80)
+            wrapMode: Text.WordWrap
+            text: Settings.recoveryNotice
+            font.family: Theme.fontBody
+            font.pixelSize: Theme.fontSizeSmall
+            color: Theme.textPrimary
+        }
+    }
+
     Text {
         anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: Theme.spacingLarge }
         text: "Virtual chips only — no real-money gambling.   v" + App.version

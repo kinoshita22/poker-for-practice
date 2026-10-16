@@ -3,10 +3,13 @@ import QtQuick.Layouts
 import PokerPractice.Bridge
 import "../components"
 
-// The poker table. Everything shown here comes from the Game bridge.
+// The poker table. Everything shown comes from ``game``: the live Game bridge,
+// or the Replay bridge (``replayMode``) for stepping through a stored hand.
 Rectangle {
     id: root
 
+    property var game: Game
+    property bool replayMode: false
     property bool animated: true
 
     signal backRequested()
@@ -18,9 +21,9 @@ Rectangle {
     // True for a moment after a new hand starts, so hole cards animate only when dealt.
     property bool dealing: false
     Connections {
-        target: Game
+        target: root.game
         function onHandNumberChanged() {
-            if (Game.handNumber > 0) {
+            if (root.game.handNumber > 0) {
                 root.dealing = root.animated
                 dealWindow.restart()
             }
@@ -46,14 +49,14 @@ Rectangle {
 
             ToolbarButton {
                 objectName: "backButton"
-                text: "‹  Menu"
+                text: root.replayMode ? "‹  History" : "‹  Menu"
                 onClicked: root.backRequested()
             }
             Text {
                 objectName: "handInfo"
-                visible: Game.handNumber > 0
-                text: "Hand #" + Game.handNumber + "   ·   Blinds "
-                      + Theme.formatChips(Game.smallBlind) + " / " + Theme.formatChips(Game.bigBlind)
+                visible: root.game.handNumber > 0
+                text: "Hand #" + root.game.handNumber + "   ·   Blinds "
+                      + Theme.formatChips(root.game.smallBlind) + " / " + Theme.formatChips(root.game.bigBlind)
                 font.family: Theme.fontBody
                 font.pixelSize: Theme.fontSizeBody - 1
                 color: Theme.textSecondary
@@ -62,7 +65,7 @@ Rectangle {
                 objectName: "tableMessage"
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
-                text: Game.message
+                text: root.game.message
                 elide: Text.ElideRight
                 font.family: Theme.fontDisplay
                 font.pixelSize: Theme.fontSizeLarge - 2
@@ -70,13 +73,13 @@ Rectangle {
             }
             ToolbarButton {
                 objectName: "analysisButton"
-                visible: App.analysisMode && !Game.handInProgress && Game.analysis.length > 0
+                visible: !root.replayMode && Settings.analysisMode && !root.game.handInProgress && root.game.analysis.length > 0
                 text: "Analysis"
                 onClicked: analysisPopup.open()
             }
             ToolbarButton {
                 objectName: "endSessionButton"
-                visible: Game.sessionActive && !Game.sessionOver
+                visible: !root.replayMode && root.game.sessionActive && !root.game.sessionOver
                 text: "End Session"
                 onClicked: endDialog.open()
             }
@@ -85,10 +88,10 @@ Rectangle {
                 Layout.preferredHeight: 34
                 implicitWidth: 132
                 variant: "primary"
-                text: Game.handNumber === 0 ? "Deal" : "Next Hand"
+                text: root.game.handNumber === 0 ? "Deal" : "Next Hand"
                 shortcutHint: ""
-                enabled: Game.canDeal
-                visible: Game.canDeal
+                enabled: root.game.canDeal
+                visible: !root.replayMode && root.game.canDeal
                 onClicked: root.dealRequested()
             }
         }
@@ -174,8 +177,8 @@ Rectangle {
             objectName: "potDisplay"
             anchors.horizontalCenter: parent.horizontalCenter
             y: area.py([0, 0.38]) - height
-            pots: Game.pots
-            totalPot: Game.totalPot
+            pots: root.game.pots
+            totalPot: root.game.totalPot
             chipWidth: area.unit * 0.36
             animated: root.animated
         }
@@ -186,14 +189,14 @@ Rectangle {
             cardWidth: area.unit * 0.86
             anchors.horizontalCenter: parent.horizontalCenter
             y: area.py([0, 0.5]) - height / 2
-            cards: Game.board
-            highlightCards: Game.winningCards
+            cards: root.game.board
+            highlightCards: root.game.winningCards
             animated: root.animated
         }
 
         // Bets and position markers, one set per seat.
         Repeater {
-            model: Game.players
+            model: root.game.players
             Item {
                 id: furniture
                 required property int slot
@@ -239,7 +242,7 @@ Rectangle {
 
         Repeater {
             objectName: "seatRepeater"
-            model: Game.players
+            model: root.game.players
             PlayerSeat {
                 // Existing PlayerSeat properties filled from model roles.
                 required name
@@ -286,7 +289,7 @@ Rectangle {
             objectName: "resultBanner"
             anchors.horizontalCenter: parent.horizontalCenter
             y: area.py([0, 0.62])
-            visible: Game.sessionActive && !Game.handInProgress && Game.handNumber > 0 && Game.message !== ""
+            visible: root.game.sessionActive && !root.game.handInProgress && root.game.handNumber > 0 && root.game.message !== ""
             width: Math.min(area.tableWidth * 0.7, resultText.implicitWidth + 40)
             height: resultText.implicitHeight + 14
             radius: height / 2
@@ -299,7 +302,7 @@ Rectangle {
                 anchors.centerIn: parent
                 width: Math.min(implicitWidth, parent.width - 24)
                 elide: Text.ElideRight
-                text: Game.message
+                text: root.game.message
                 font.family: Theme.fontDisplay
                 font.pixelSize: Math.max(13, area.unit * 0.2)
                 color: Theme.goldBright
@@ -308,7 +311,7 @@ Rectangle {
 
         Text {
             anchors.centerIn: parent
-            visible: !Game.sessionActive
+            visible: !root.game.sessionActive
             text: "No session in progress"
             font.family: Theme.fontBody
             font.pixelSize: Theme.fontSizeLarge
@@ -316,31 +319,39 @@ Rectangle {
         }
     }
 
+    ReplayControls {
+        objectName: "replayControls"
+        anchors.fill: actionPanel
+        visible: root.replayMode
+        replay: root.replayMode ? root.game : null
+    }
+
     ActionPanel {
         id: actionPanel
         objectName: "actionPanel"
+        visible: !root.replayMode
         anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-        actions: Game.actions
-        totalPot: Game.totalPot
-        bigBlind: Game.bigBlind
+        actions: root.game.actions
+        totalPot: root.game.totalPot
+        bigBlind: root.game.bigBlind
         onActionRequested: (kind, amount, step) => root.actionRequested(kind, amount, step)
     }
 
     AnalysisPopup {
         id: analysisPopup
         objectName: "analysisPopup"
-        entries: Game.analysis
+        entries: root.game.analysis
     }
 
     ConfirmDialog {
         id: endDialog
         objectName: "endSessionDialog"
         title: "End this session?"
-        text: Game.handInProgress ? "The hand in progress will be abandoned. Completed hands are kept."
+        text: root.game.handInProgress ? "The hand in progress will be abandoned. Completed hands are kept."
                                   : "You will return to the main menu."
         confirmText: "End Session"
         onConfirmed: {
-            Game.endSession()
+            root.game.endSession()
             root.sessionEnded()
         }
     }
@@ -349,7 +360,7 @@ Rectangle {
     Rectangle {
         objectName: "sessionOverOverlay"
         anchors.fill: parent
-        visible: Game.sessionOver
+        visible: root.game.sessionOver
         color: "#b0000000"
         z: 10
 
@@ -378,7 +389,7 @@ Rectangle {
                 }
                 Text {
                     Layout.fillWidth: true
-                    text: Game.message
+                    text: root.game.message
                     wrapMode: Text.WordWrap
                     font.family: Theme.fontBody
                     font.pixelSize: Theme.fontSizeBody
@@ -392,7 +403,7 @@ Rectangle {
                         objectName: "overMenuButton"
                         text: "Main Menu"
                         onClicked: {
-                            Game.endSession()
+                            root.game.endSession()
                             root.sessionEnded()
                         }
                     }
@@ -405,7 +416,7 @@ Rectangle {
                         objectName: "playAgainButton"
                         text: "Play Again"
                         variant: "primary"
-                        onClicked: Game.restartSession()
+                        onClicked: root.game.restartSession()
                     }
                 }
             }
@@ -446,7 +457,7 @@ Rectangle {
     }
 
     Connections {
-        target: Game
+        target: root.game
         function onErrorOccurred(message) {
             toast.text = message
             toastAnimation.restart()
@@ -454,7 +465,7 @@ Rectangle {
     }
 
     // Space / Enter deals the next hand.
-    Shortcut { sequences: ["Space", "Return"]; enabled: Game.canDeal; onActivated: root.dealRequested() }
+    Shortcut { sequences: ["Space", "Return"]; enabled: root.game.canDeal; onActivated: root.dealRequested() }
 
     // Keyboard shortcuts for the betting actions.
     Shortcut { sequence: "F"; enabled: actionPanel.ready; onActivated: actionPanel.fold() }

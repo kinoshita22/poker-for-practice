@@ -271,3 +271,55 @@ Practical heuristics, not a solver. All code is in `src/ai/` and sees only `obse
   The session exposes the reasons together with the opponents' hole cards *only after the hand
   is over*; the table's Analysis button shows them when analysis mode is enabled (setup screen).
 - **Mixed style** seats rotate through the three styles from a random start.
+
+## Persistence, statistics, history and settings (Phase 8)
+
+### Storage
+SQLite database `poker_practice.db` in the user-data directory (`%APPDATA%\PokerPractice` on
+Windows). `services/database.py`:
+- **Migrations:** ordered statement lists; `PRAGMA user_version` records the applied schema;
+  each migration runs in one transaction. A database from a newer version is refused rather
+  than modified.
+- **Corruption:** at open, `PRAGMA quick_check` runs; an unreadable file is renamed to
+  `poker_practice.corrupt-<timestamp>.db` and a fresh database is created. The main menu shows a
+  notice. If the location is unusable, the app runs with an in-memory database and says so.
+- Every write uses `Database.transaction()` (commit or roll back).
+
+Schema v1: `sessions`, `hands` (summary columns + versioned JSON event log), `hand_players`
+(per-player facts per hand), `settings` (JSON values).
+
+### Recording
+`HistoryRecorder` creates a session row when a session starts, records each completed hand
+(from the engine's event log, not the UI), and closes the session on end/new session/quit.
+Sessions left open by a crash are closed at the next start. Database errors are logged and shown
+as a toast; play is never interrupted.
+
+`services/history_codec.py` encodes events as versioned JSON and decodes them back to the
+engine's event types, validating structure. A damaged row raises `RecordError`; the history list
+still loads and the detail pane explains that the record is damaged.
+
+### Statistics (`services/statistics.py`)
+Facts are derived per player per hand from events and stored in `hand_players`; screens
+aggregate them with SQL. Definitions (also in the module docstring):
+hands played (dealt in), hands won (received chips from any pot), net chips, VPIP (pre-flop call
+/bet/raise; blinds and a big-blind check do not count), PFR (pre-flop bet/raise), showdown
+frequency (showdowns ÷ hands played), showdown win rate (showdowns with any pot won ÷
+showdowns), biggest pot won. Tests check the SQL aggregates against the pure-Python aggregate.
+
+### History and replay
+- **History screen:** recent hands (newest first) with your cards, result and summary; the
+  detail shows the board, each player's cards and result, and the chronological action log by
+  street. Opponents' cards appear only if they were shown at the table unless "All cards" is
+  chosen.
+- **Replay:** `ReplaySession` folds the stored events with the same `HandPresenter` and
+  `view_builder` as live play, pausing at meaningful checkpoints (setup, each action, each board
+  card, exposures, showdown, each pot). The table screen renders it through the `Replay` bridge
+  (a `GameBridge` subclass) with transport controls and "As played / Show all cards". Replays
+  only read decoded events: they never write to the database or touch the live session.
+- Human-facing sentences use second-person agreement for the human ("You raise", "You win").
+
+### Settings
+`AppSettings` (validated; bad stored values fall back to defaults): animations, auto-deal,
+hand analysis, chip colour scheme (classic / vivid), and the last-used session options (which
+pre-fill the setup screen). `Settings` bridge properties persist immediately and are applied to
+the chips bridge and the game controller through a subscription.

@@ -18,24 +18,31 @@ Button {
     implicitHeight: 42
     hoverEnabled: true
 
-    contentItem: Column {
-        spacing: 0
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            text: control.text
-            font.family: Theme.fontBody
-            font.pixelSize: Theme.fontSizeBody
-            font.bold: true
-            color: control.labelColor
-        }
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            visible: control.shortcutHint !== ""
-            text: control.shortcutHint
-            font.family: Theme.fontBody
-            font.pixelSize: 10
-            color: control.labelColor
-            opacity: 0.55
+    contentItem: Item {
+        implicitWidth: labels.implicitWidth
+        implicitHeight: labels.implicitHeight
+
+        Column {
+            id: labels
+            anchors.centerIn: parent
+            spacing: 0
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: control.text
+                font.family: Theme.fontBody
+                font.pixelSize: Theme.fontSizeBody
+                font.bold: true
+                color: control.labelColor
+            }
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                visible: control.shortcutHint !== ""
+                text: control.shortcutHint
+                font.family: Theme.fontBody
+                font.pixelSize: 10
+                color: control.labelColor
+                opacity: 0.55
+            }
         }
     }
 

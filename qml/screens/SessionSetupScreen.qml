@@ -116,8 +116,8 @@ ScreenScaffold {
                 SegmentedSelector {
                     objectName: "analysisSelector"
                     options: [{ label: "Off", value: false }, { label: "After each hand", value: true }]
-                    value: App.analysisMode
-                    onActivated: v => App.analysisMode = v
+                    value: Settings.analysisMode
+                    onActivated: v => Settings.analysisMode = v
                 }
             }
 

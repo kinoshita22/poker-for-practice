@@ -9,12 +9,15 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+# Never touch the real user data (database, settings) from a QA tool.
+os.environ.setdefault("POKER_PRACTICE_DATA_DIR", tempfile.mkdtemp(prefix="poker-screenshot-"))
 
 from PySide6.QtCore import QEventLoop, QTimer  # noqa: E402
 from PySide6.QtGui import QGuiApplication  # noqa: E402
