@@ -72,6 +72,14 @@ class BoardDealt:
 
 
 @dataclass(frozen=True, slots=True)
+class CardsExposed:
+    """A live hand turned face up before showdown because betting is closed."""
+
+    seat: int
+    cards: tuple[Card, Card]
+
+
+@dataclass(frozen=True, slots=True)
 class UncalledBetReturned:
     seat: int
     amount: int
@@ -103,5 +111,5 @@ class HandEnded:
 
 HandEvent = (
     HandStarted | BlindPosted | HoleCardsDealt | PlayerActed | BoardDealt
-    | UncalledBetReturned | ShowdownRevealed | PotAwarded | HandEnded
+    | CardsExposed | UncalledBetReturned | ShowdownRevealed | PotAwarded | HandEnded
 )

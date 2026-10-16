@@ -61,7 +61,22 @@ Rectangle {
         actionRequested(kind, amount || 0, actions.step)
     }
 
-    function fold() { if (ready && actions.canFold) submit("fold") }
+    // Folding when checking is free needs a second click (or F press).
+    property bool confirmingFold: false
+    Timer { id: foldConfirmTimer; interval: 2500; onTriggered: root.confirmingFold = false }
+    onReadyChanged: confirmingFold = false
+
+    function fold() {
+        if (!ready || !actions.canFold)
+            return
+        if (actions.canCheck && !confirmingFold) {
+            confirmingFold = true
+            foldConfirmTimer.restart()
+            return
+        }
+        confirmingFold = false
+        submit("fold")
+    }
     function checkOrCall() {
         if (!ready)
             return
@@ -218,7 +233,7 @@ Rectangle {
 
                 ActionButton {
                     objectName: "foldButton"
-                    text: "Fold"
+                    text: root.confirmingFold ? "Fold anyway?" : "Fold"
                     shortcutHint: "F"
                     variant: "fold"
                     enabled: root.ready && root.actions.canFold

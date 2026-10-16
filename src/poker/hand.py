@@ -10,8 +10,8 @@ Rules implemented (documented in docs/ARCHITECTURE.md):
   raise does not reopen the betting for players who already acted, unless
   such raises add up to a full raise since they last acted.
 * Uncalled chips are returned at the end of every street.
-* When at most one player can still bet, the remaining board is dealt out
-  without further action.
+* When at most one player can still bet, live hands are exposed and the
+  remaining board is dealt out without further action.
 * Odd chips from split pots go to the winners closest to the button's left.
 """
 
@@ -29,6 +29,7 @@ from poker.events import (
     BlindKind,
     BlindPosted,
     BoardDealt,
+    CardsExposed,
     HandEnded,
     HandEvent,
     HandStarted,
@@ -150,6 +151,7 @@ class HoldemHand:
         self.action_count = 0  # increments on every accepted action
         self.events: list[HandEvent] = []
         self.result: HandResult | None = None
+        self._exposed = False
         self._initial_chips = sum(s.stack for s in seats)
         self._start()
 
@@ -377,11 +379,22 @@ class HoldemHand:
                 self._showdown()
                 return
             betting_possible = sum(p.can_act for p in self.players) >= 2
+            if not betting_possible:
+                self._expose_live_hands()
             self._deal_street(_NEXT_STREET[self.street])
             if betting_possible:
                 after = self.button
             # Otherwise loop: the street is immediately complete and the
             # board runs out to showdown.
+
+    def _expose_live_hands(self) -> None:
+        """Turn live hands face up once no more betting can happen (all-in run-out)."""
+        if self._exposed:
+            return
+        self._exposed = True
+        for p in self.seats_clockwise_from(self.button):
+            if not p.folded:
+                self.events.append(CardsExposed(p.seat, p.hole))  # type: ignore[arg-type]
 
     def _deal_street(self, street: Street) -> None:
         self.burned.append(self.deck.deal_one())

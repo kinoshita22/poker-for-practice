@@ -23,6 +23,10 @@ Item {
     property var bestCards: []
     property string playerStyle: ""
     property bool animated: true
+    // Deal animation: only right after a new hand starts.
+    property bool animateDeal: false
+    property point dealOrigin: Qt.point(0, 0)  // table centre in this item's coordinates
+    property int dealOrder: 0  // position in the dealing order
 
     readonly property real plateWidth: unit * (isHuman ? 2.3 : 1.95)
     readonly property real plateHeight: unit * 0.62
@@ -43,19 +47,43 @@ Item {
         height: root.cardWidth * 88 / 63
         y: 0
         visible: root.cards.length > 0
-
+        // Fixed two positions: delegates live as long as the seat, so revealing
+        // cards flips them in place instead of recreating (and re-dealing) them.
         Repeater {
-            model: root.cards.length
+            model: 2
             PlayingCard {
-                readonly property string code: root.cards[index]
+                id: holeCard
+                readonly property bool present: index < root.cards.length
+                readonly property string code: present ? root.cards[index] : ""
+                // Face down until it has landed in front of the player.
+                property bool landed: true
+                visible: present
                 x: index * root.cardWidth * 0.7
                 width: root.cardWidth
                 height: width * aspect
                 rotation: (index - 0.5) * 7
                 card: code
-                faceUp: code !== ""
-                highlighted: root.bestCards.indexOf(code) >= 0
+                faceUp: code !== "" && landed
+                highlighted: code !== "" && root.bestCards.indexOf(code) >= 0
                 animated: root.animated
+
+                Timer {
+                    id: landTimer
+                    onTriggered: holeCard.landed = true
+                }
+                function deal() {
+                    if (!present || !root.animateDeal) {
+                        landed = true
+                        return
+                    }
+                    const delay = (index * 6 + root.dealOrder) * 60
+                    landed = false
+                    dealFrom(root.dealOrigin.x - x - cardsRow.x, root.dealOrigin.y - cardsRow.y, delay)
+                    landTimer.interval = delay + 420
+                    landTimer.restart()
+                }
+                onPresentChanged: deal()
+                Component.onCompleted: deal()
             }
         }
     }

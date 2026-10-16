@@ -13,6 +13,20 @@ Rectangle {
     signal actionRequested(string kind, int amount, int step)
     signal dealRequested()
     signal newSessionRequested()
+    signal sessionEnded()
+
+    // True for a moment after a new hand starts, so hole cards animate only when dealt.
+    property bool dealing: false
+    Connections {
+        target: Game
+        function onHandNumberChanged() {
+            if (Game.handNumber > 0) {
+                root.dealing = root.animated
+                dealWindow.restart()
+            }
+        }
+    }
+    Timer { id: dealWindow; interval: 1500; onTriggered: root.dealing = false }
 
     color: Theme.background
 
@@ -55,10 +69,10 @@ Rectangle {
                 color: Theme.goldBright
             }
             ToolbarButton {
-                objectName: "newSessionButton"
-                visible: Game.sessionOver
-                text: "New Session"
-                onClicked: root.newSessionRequested()
+                objectName: "endSessionButton"
+                visible: Game.sessionActive && !Game.sessionOver
+                text: "End Session"
+                onClicked: endDialog.open()
             }
             ActionButton {
                 objectName: "dealButton"
@@ -105,6 +119,41 @@ Rectangle {
 
         function px(point) { return tableX + point[0] * tableWidth }
         function py(point) { return tableY + point[1] * tableHeight }
+        readonly property point potPoint: Qt.point(px([0.5, 0]), py([0, 0.33]))
+        readonly property point centre: Qt.point(px([0.5, 0]), py([0, 0.5]))
+
+        // Chips travelling across the felt (bets to the pot, pots to winners).
+        function flyChips(amount, from, to) {
+            if (!root.animated || amount <= 0)
+                return
+            flyingChips.createObject(area, { amount: amount, startPoint: from, endPoint: to })
+        }
+
+        Component {
+            id: flyingChips
+            ChipPile {
+                id: flyer
+                property point startPoint
+                property point endPoint
+                chipWidth: area.unit * 0.32
+                maxPerStack: 8
+                maxStacks: 4
+                animated: false
+                z: 5
+                x: startPoint.x - width / 2
+                y: startPoint.y - height / 2
+                ParallelAnimation {
+                    running: true
+                    NumberAnimation { target: flyer; property: "x"; to: flyer.endPoint.x - flyer.width / 2; duration: 480; easing.type: Easing.InOutCubic }
+                    NumberAnimation { target: flyer; property: "y"; to: flyer.endPoint.y - flyer.height / 2; duration: 480; easing.type: Easing.InOutCubic }
+                    SequentialAnimation {
+                        PauseAnimation { duration: 380 }
+                        NumberAnimation { target: flyer; property: "opacity"; to: 0; duration: 100 }
+                    }
+                    onFinished: flyer.destroy()
+                }
+            }
+        }
 
         PokerTable {
             id: table
@@ -149,12 +198,27 @@ Rectangle {
                 anchors.fill: parent
 
                 BetDisplay {
+                    id: betDisplay
                     objectName: "bet" + furniture.slot
+                    readonly property point point: Qt.point(area.px(area.betPoints[furniture.slot]),
+                                                            area.py(area.betPoints[furniture.slot]))
+                    readonly property point seatPoint: Qt.point(area.px(area.seatPoints[furniture.slot]),
+                                                                area.py(area.seatPoints[furniture.slot]))
+                    property int previous: 0
                     amount: furniture.bet
                     chipWidth: area.unit * 0.32
                     animated: root.animated
-                    x: area.px(area.betPoints[furniture.slot]) - width / 2
-                    y: area.py(area.betPoints[furniture.slot]) - height / 2
+                    x: point.x - width / 2
+                    y: point.y - height / 2
+
+                    onAmountChanged: {
+                        if (amount > previous && previous === 0)
+                            pile.animateFrom(seatPoint.x - point.x, seatPoint.y - point.y, 0)
+                        else if (amount < previous)
+                            area.flyChips(previous - amount, point, area.potPoint)
+                        previous = amount
+                    }
+                    Component.onCompleted: previous = amount
                 }
                 Row {
                     spacing: 3
@@ -188,14 +252,51 @@ Rectangle {
                 required property int slot
                 required property string style
 
+                id: seatItem
                 objectName: "seat" + slot
                 unit: area.unit
                 playerStyle: style
                 animated: root.animated
+                animateDeal: root.dealing
+                dealOrder: slot
+                dealOrigin: Qt.point(area.centre.x - x, area.centre.y - y)
+
+                property int previousWon: 0
+                onWonAmountChanged: {
+                    if (wonAmount > previousWon)
+                        area.flyChips(wonAmount - previousWon, area.potPoint,
+                                      Qt.point(x + width / 2, y + height - plateHeight / 2))
+                    previousWon = wonAmount
+                }
                 // Centre the nameplate on the slot point.
                 x: area.px(area.seatPoints[slot]) - width / 2
                 y: area.py(area.seatPoints[slot]) - (height - plateHeight / 2)
                 z: isHuman ? 2 : 1
+            }
+        }
+
+        // Hand result on the felt.
+        Rectangle {
+            objectName: "resultBanner"
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: area.py([0, 0.62])
+            visible: Game.sessionActive && !Game.handInProgress && Game.handNumber > 0 && Game.message !== ""
+            width: Math.min(area.tableWidth * 0.7, resultText.implicitWidth + 40)
+            height: resultText.implicitHeight + 14
+            radius: height / 2
+            color: "#cc0d0c0b"
+            border.width: 1
+            border.color: Theme.goldDim
+
+            Text {
+                id: resultText
+                anchors.centerIn: parent
+                width: Math.min(implicitWidth, parent.width - 24)
+                elide: Text.ElideRight
+                text: Game.message
+                font.family: Theme.fontDisplay
+                font.pixelSize: Math.max(13, area.unit * 0.2)
+                color: Theme.goldBright
             }
         }
 
@@ -217,6 +318,86 @@ Rectangle {
         totalPot: Game.totalPot
         bigBlind: Game.bigBlind
         onActionRequested: (kind, amount, step) => root.actionRequested(kind, amount, step)
+    }
+
+    ConfirmDialog {
+        id: endDialog
+        objectName: "endSessionDialog"
+        title: "End this session?"
+        text: Game.handInProgress ? "The hand in progress will be abandoned. Completed hands are kept."
+                                  : "You will return to the main menu."
+        confirmText: "End Session"
+        onConfirmed: {
+            Game.endSession()
+            root.sessionEnded()
+        }
+    }
+
+    // Session over: the human is out of chips or has won every chip.
+    Rectangle {
+        objectName: "sessionOverOverlay"
+        anchors.fill: parent
+        visible: Game.sessionOver
+        color: "#b0000000"
+        z: 10
+
+        MouseArea { anchors.fill: parent }  // block clicks to the table
+
+        Rectangle {
+            anchors.centerIn: parent
+            width: Math.min(460, parent.width - 48)
+            height: overColumn.implicitHeight + 2 * Theme.spacingLarge
+            radius: Theme.radius * 2
+            color: Theme.panel
+            border.width: 1
+            border.color: Theme.gold
+
+            ColumnLayout {
+                id: overColumn
+                anchors.fill: parent
+                anchors.margins: Theme.spacingLarge
+                spacing: Theme.spacing
+
+                Text {
+                    text: "Session over"
+                    font.family: Theme.fontDisplay
+                    font.pixelSize: Theme.fontSizeTitle - 4
+                    color: Theme.textPrimary
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: Game.message
+                    wrapMode: Text.WordWrap
+                    font.family: Theme.fontBody
+                    font.pixelSize: Theme.fontSizeBody
+                    color: Theme.textSecondary
+                }
+                RowLayout {
+                    Layout.alignment: Qt.AlignRight
+                    Layout.topMargin: Theme.spacing
+                    spacing: Theme.spacing
+                    ActionButton {
+                        objectName: "overMenuButton"
+                        text: "Main Menu"
+                        onClicked: {
+                            Game.endSession()
+                            root.sessionEnded()
+                        }
+                    }
+                    ActionButton {
+                        objectName: "overNewSessionButton"
+                        text: "New Session"
+                        onClicked: root.newSessionRequested()
+                    }
+                    ActionButton {
+                        objectName: "playAgainButton"
+                        text: "Play Again"
+                        variant: "primary"
+                        onClicked: Game.restartSession()
+                    }
+                }
+            }
+        }
     }
 
     // Rejected actions and other errors, shown briefly over the table.

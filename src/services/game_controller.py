@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import random
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
@@ -18,6 +18,7 @@ from poker import HandError
 from poker.events import (
     BlindPosted,
     BoardDealt,
+    CardsExposed,
     HandEvent,
     HoleCardsDealt,
     PlayerActed,
@@ -36,10 +37,11 @@ class Timing:
     """Pauses in milliseconds. ``scale`` multiplies all of them (0 = instant)."""
 
     blind: int = 180
-    hole_card: int = 70
+    hole_card: int = 110  # roughly matches the QML deal animation
     action: int = 250
     board: int = 650
     uncalled: int = 250
+    exposed: int = 450
     showdown: int = 600
     award: int = 1100
     think_min: int = 450
@@ -58,6 +60,8 @@ class Timing:
                 base = self.board
             case UncalledBetReturned():
                 base = self.uncalled
+            case CardsExposed():
+                base = self.exposed
             case ShowdownRevealed():
                 base = self.showdown
             case PotAwarded():
@@ -71,6 +75,8 @@ class Timing:
 
 
 INSTANT = Timing(scale=0.0)
+# Without animations events still arrive in order, just with short pauses.
+REDUCED_MOTION_SCALE = 0.3
 
 
 class GameController(QObject):
@@ -108,6 +114,15 @@ class GameController(QObject):
         self._rng = random.Random(config.seed)
         log.info("Session started: %s", config)
         self.deal()
+
+    def restart_session(self) -> None:
+        """Start a fresh session with the same settings (new cards)."""
+        if self.session is not None:
+            self.start_session(replace(self.session.config, seed=None))
+
+    def set_animations_enabled(self, enabled: bool) -> None:
+        if self.timing.scale > 0:
+            self.timing = replace(self.timing, scale=1.0 if enabled else REDUCED_MOTION_SCALE)
 
     def end_session(self) -> None:
         self._generation += 1

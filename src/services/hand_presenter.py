@@ -19,6 +19,7 @@ from poker.events import (
     BlindKind,
     BlindPosted,
     BoardDealt,
+    CardsExposed,
     HandEnded,
     HandEvent,
     HandStarted,
@@ -135,6 +136,10 @@ class HandPresenter:
                     seat.street_bet = 0
                     if not seat.folded:
                         seat.last_action = ""
+            case CardsExposed():
+                seat = self.seats[event.seat]
+                seat.revealed = True
+                seat.hole = tuple(event.cards)
             case UncalledBetReturned():
                 seat = self.seats[event.seat]
                 seat.stack += event.amount

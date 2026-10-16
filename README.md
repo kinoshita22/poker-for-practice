@@ -3,7 +3,7 @@
 A Texas Hold'em practice application for Windows built with Python, PySide6 and Qt Quick/QML.
 **Virtual chips only** — there is no real-money gambling, deposits or withdrawals.
 
-> Status: Phase 5 (playable hands against placeholder calling opponents). Real
+> Status: Phase 6 (complete gameplay against placeholder calling opponents). Real
 > opponents and persistence are implemented in later phases.
 
 ## Requirements

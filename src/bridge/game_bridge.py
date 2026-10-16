@@ -93,6 +93,10 @@ class GameBridge(QObject):
         return self._controller.deal()
 
     @Slot()
+    def restartSession(self) -> None:
+        self._controller.restart_session()
+
+    @Slot()
     def endSession(self) -> None:
         self._controller.end_session()
 

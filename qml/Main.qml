@@ -49,6 +49,7 @@ ApplicationWindow {
 
         initialItem: MainMenuScreen {
             onPlayRequested: window.showScreen(Game.sessionActive ? "table" : "setup")
+            onNewSessionRequested: window.showScreen("setup")
             onStatisticsRequested: window.showScreen("statistics")
             onHistoryRequested: window.showScreen("history")
             onSettingsRequested: window.showScreen("settings")
@@ -73,8 +74,10 @@ ApplicationWindow {
         TableScreen {
             onBackRequested: window.showScreen("menu")
             onActionRequested: (kind, amount, step) => Game.submitAction(kind, amount, step)
+            animated: App.animationsEnabled
             onDealRequested: Game.deal()
             onNewSessionRequested: window.showScreen("setup")
+            onSessionEnded: window.showScreen("menu")
         }
     }
     Component { id: statisticsScreen; StatisticsScreen { onBackRequested: window.showScreen("menu") } }

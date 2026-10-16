@@ -59,6 +59,7 @@ def load_ui(app: QGuiApplication) -> AppContext:
         controller=GameController(game.set_view, parent=engine),
     )
     game.attach(context.controller)
+    context.app_bridge.animationsEnabledChanged.connect(context.controller.set_animations_enabled)
 
     def on_warnings(warnings: list[QQmlError]) -> None:
         for warning in warnings:

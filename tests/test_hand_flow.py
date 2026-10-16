@@ -242,3 +242,28 @@ def test_random_sessions_preserve_every_invariant(seed):
         table.settle_hand()
         assert table.total_chips() == total
     assert hands > 0
+
+
+def test_live_hands_exposed_before_all_in_runout():
+    from poker.events import CardsExposed
+
+    hand = make_hand([1000, 400], button=0, holes={0: "Ac Kc", 1: "9d 9s"}, board="2c 7c Jd 4h 9c")
+    play(hand, (0, Action.call()), (1, Action.check()))
+    play(hand, (1, Action.all_in()), (0, Action.call()))
+    kinds = [type(e).__name__ for e in hand.events]
+    first_exposed = kinds.index("CardsExposed")
+    turn_dealt = max(i for i, e in enumerate(hand.events) if isinstance(e, BoardDealt))
+    assert first_exposed < turn_dealt
+    exposed = [e for e in hand.events if isinstance(e, CardsExposed)]
+    assert {e.seat for e in exposed} == {0, 1}
+    assert kinds.count("CardsExposed") == 2
+
+
+def test_no_exposure_when_hand_reaches_river_with_betting():
+    from poker.events import CardsExposed
+
+    hand = make_hand([1000, 1000], button=0)
+    play(hand, (0, Action.call()), (1, Action.check()))
+    for _ in range(3):
+        play(hand, (1, Action.check()), (0, Action.check()))
+    assert not any(isinstance(e, CardsExposed) for e in hand.events)

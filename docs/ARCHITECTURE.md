@@ -221,3 +221,22 @@ QML ── Game.submitAction(kind, amount, step) ──► GameBridge ──► 
 `tools/walkthrough.py OUT --hands N` drives the real UI (Play → Start Session → action buttons →
 Next Hand), screenshots each street and hand result, checks chip conservation and fails on QML
 warnings.
+
+## Complete gameplay (Phase 6)
+
+- **All-in exposure:** when betting closes with two or more live hands before the river, the
+  engine emits `CardsExposed` for each live hand before dealing the run-out; the presenter turns
+  those cards face up so the run-out is watched with hands visible, as at a real table.
+- **Animations driven by state changes, never by rules:** hole cards are dealt from the table
+  centre in seat order (only within a short window after a new hand starts), the human's cards
+  flip up when they land, board cards slide in face down and flip (flop cards staggered), new
+  bets slide out from the player, bets fly to the pot when a street closes, and pots fly to the
+  winners. Seat card delegates are fixed (two per seat) so a reveal flips the existing cards
+  instead of recreating them.
+- **Animations preference:** `App.animationsEnabled` disables QML motion and reduces controller
+  pauses to 30 % (events still arrive in order).
+- **Session flow:** Deal / Next Hand (also Space/Enter), End Session with confirmation, a
+  session-over overlay (Play Again with the same settings, New Session, Main Menu), and Resume
+  Table / New Session on the main menu while a session exists.
+- **Fold safety:** folding when checking is free needs a second click ("Fold anyway?").
+- **Result banner** on the felt after each hand.

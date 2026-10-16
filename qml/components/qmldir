@@ -15,3 +15,4 @@ BoardCards 1.0 BoardCards.qml
 ActionButton 1.0 ActionButton.qml
 ActionPanel 1.0 ActionPanel.qml
 SegmentedSelector 1.0 SegmentedSelector.qml
+ConfirmDialog 1.0 ConfirmDialog.qml

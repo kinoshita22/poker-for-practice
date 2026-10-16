@@ -26,14 +26,33 @@ Row {
             }
 
             PlayingCard {
+                id: boardCard
                 objectName: "boardCard" + index
                 readonly property string code: index < root.cards.length ? root.cards[index] : ""
+                property bool landed: true
                 anchors.fill: parent
                 visible: code !== ""
                 card: code
+                faceUp: landed
                 highlighted: code !== "" && root.highlightCards.indexOf(code) >= 0
                 animated: root.animated
-                onCodeChanged: if (code !== "") dealFrom(0, -height * 0.6, index >= 3 ? 0 : index * 90)
+
+                Timer {
+                    id: flipTimer
+                    onTriggered: boardCard.landed = true
+                }
+                // Slide in face down, then turn over (flop cards one after another).
+                onCodeChanged: {
+                    if (code === "" || !root.animated) {
+                        landed = true
+                        return
+                    }
+                    const delay = index < 3 ? index * 110 : 0
+                    landed = false
+                    dealFrom(0, -height * 0.7, delay)
+                    flipTimer.interval = delay + 360
+                    flipTimer.restart()
+                }
             }
         }
     }

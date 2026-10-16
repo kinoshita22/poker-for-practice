@@ -20,9 +20,11 @@ class AppBridge(QObject):
     """Static application information and app-wide commands."""
 
     quitRequested = Signal()
+    animationsEnabledChanged = Signal(bool)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
+        self._animations_enabled = True
 
     @staticmethod
     def create(engine: QQmlEngine) -> "AppBridge":
@@ -39,6 +41,18 @@ class AppBridge(QObject):
     @Property(str, constant=True)
     def dataDirectory(self) -> str:
         return str(user_data_dir())
+
+    def _get_animations_enabled(self) -> bool:
+        return self._animations_enabled
+
+    def _set_animations_enabled(self, enabled: bool) -> None:
+        if enabled != self._animations_enabled:
+            self._animations_enabled = enabled
+            self.animationsEnabledChanged.emit(enabled)
+
+    animationsEnabled = Property(
+        bool, _get_animations_enabled, _set_animations_enabled, notify=animationsEnabledChanged
+    )
 
     @Slot()
     def requestQuit(self) -> None:

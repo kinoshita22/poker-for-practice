@@ -8,6 +8,7 @@ Rectangle {
     id: root
 
     signal playRequested()
+    signal newSessionRequested()
     signal statisticsRequested()
     signal historyRequested()
     signal settingsRequested()
@@ -73,9 +74,16 @@ Rectangle {
         MenuButton {
             objectName: "playButton"
             Layout.alignment: Qt.AlignHCenter
-            text: "Play"
+            text: Game.sessionActive ? "Resume Table" : "Play"
             primary: true
             onClicked: root.playRequested()
+        }
+        MenuButton {
+            objectName: "newSessionMenuButton"
+            Layout.alignment: Qt.AlignHCenter
+            visible: Game.sessionActive
+            text: "New Session"
+            onClicked: root.newSessionRequested()
         }
         MenuButton {
             objectName: "statisticsButton"
