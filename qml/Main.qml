@@ -27,6 +27,7 @@ ApplicationWindow {
             "statistics": statisticsScreen,
             "history": historyScreen,
             "settings": settingsScreen,
+            "setup": setupScreen,
             "gallery": galleryScreen
         }[name]
         if (name === "menu") {
@@ -47,7 +48,7 @@ ApplicationWindow {
         anchors.fill: parent
 
         initialItem: MainMenuScreen {
-            onPlayRequested: window.showScreen("table")
+            onPlayRequested: window.showScreen(Game.sessionActive ? "table" : "setup")
             onStatisticsRequested: window.showScreen("statistics")
             onHistoryRequested: window.showScreen("history")
             onSettingsRequested: window.showScreen("settings")
@@ -71,6 +72,7 @@ ApplicationWindow {
     Component { id: statisticsScreen; StatisticsScreen { onBackRequested: window.showScreen("menu") } }
     Component { id: historyScreen; HistoryScreen { onBackRequested: window.showScreen("menu") } }
     Component { id: settingsScreen; SettingsScreen { onBackRequested: window.showScreen("menu") } }
+    Component { id: setupScreen; SessionSetupScreen { onBackRequested: window.showScreen("menu") } }
     Component { id: galleryScreen; GalleryScreen { onBackRequested: window.showScreen("menu") } }
 
     // Developer shortcut to the card/chip gallery.

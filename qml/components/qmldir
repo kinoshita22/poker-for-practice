@@ -6,3 +6,12 @@ PlayingCard 1.0 PlayingCard.qml
 PokerChip 1.0 PokerChip.qml
 ChipStack 1.0 ChipStack.qml
 ChipPile 1.0 ChipPile.qml
+PokerTable 1.0 PokerTable.qml
+PlayerSeat 1.0 PlayerSeat.qml
+PositionMarker 1.0 PositionMarker.qml
+BetDisplay 1.0 BetDisplay.qml
+PotDisplay 1.0 PotDisplay.qml
+BoardCards 1.0 BoardCards.qml
+ActionButton 1.0 ActionButton.qml
+ActionPanel 1.0 ActionPanel.qml
+SegmentedSelector 1.0 SegmentedSelector.qml

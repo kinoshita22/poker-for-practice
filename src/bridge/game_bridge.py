@@ -1,0 +1,125 @@
+"""The table state exposed to QML as the ``Game`` singleton."""
+
+from __future__ import annotations
+
+from dataclasses import asdict
+
+from PySide6.QtCore import Property, QObject, Signal
+from PySide6.QtQml import QmlNamedElement, QmlSingleton, QQmlEngine
+
+from bridge.player_model import PlayerListModel
+from bridge.registry import QML_IMPORT_MAJOR_VERSION, QML_IMPORT_NAME, singleton_instance
+from services.table_view import ActionView, TableView
+
+__all__ = ["GameBridge", "QML_IMPORT_NAME", "QML_IMPORT_MAJOR_VERSION"]
+
+
+def actions_to_qml(actions: ActionView | None) -> dict:
+    """Legal actions as a QML map; empty when the human is not to act."""
+    if actions is None:
+        return {}
+    data = asdict(actions)
+    data["presets"] = [{"label": p.label, "amount": p.amount} for p in actions.presets]
+    return {
+        "step": data["step"],
+        "canFold": data["can_fold"],
+        "canCheck": data["can_check"],
+        "canCall": data["can_call"],
+        "callAmount": data["call_amount"],
+        "canBet": data["can_bet"],
+        "canRaise": data["can_raise"],
+        "canAllIn": data["can_all_in"],
+        "minTo": data["min_to"],
+        "maxTo": data["max_to"],
+        "stack": data["stack"],
+        "committed": data["committed"],
+        "presets": data["presets"],
+    }
+
+
+@QmlNamedElement("Game")
+@QmlSingleton
+class GameBridge(QObject):
+    """Publishes :class:`TableView` snapshots. Holds no poker rules."""
+
+    viewChanged = Signal()
+
+    def __init__(self, parent: QObject | None = None) -> None:
+        super().__init__(parent)
+        self._players = PlayerListModel(self)
+        self._view = TableView()
+        self._actions: dict = {}
+
+    @staticmethod
+    def create(engine: QQmlEngine) -> "GameBridge":
+        return singleton_instance(GameBridge)
+
+    @property
+    def view(self) -> TableView:
+        return self._view
+
+    def set_view(self, view: TableView) -> None:
+        """Publish a new snapshot (rows update in place)."""
+        self._view = view
+        self._actions = actions_to_qml(view.actions)
+        self._players.set_seats(sorted(view.seats, key=lambda s: s.slot))
+        self.viewChanged.emit()
+
+    @Property(QObject, constant=True)
+    def players(self) -> PlayerListModel:
+        return self._players
+
+    @Property("QStringList", notify=viewChanged)
+    def board(self) -> list[str]:
+        return list(self._view.board)
+
+    @Property("QStringList", notify=viewChanged)
+    def winningCards(self) -> list[str]:
+        return list(self._view.winning_cards)
+
+    @Property("QVariantList", notify=viewChanged)
+    def pots(self) -> list[dict]:
+        return [
+            {"label": p.label, "amount": p.amount, "eligible": list(p.eligible)}
+            for p in self._view.pots
+        ]
+
+    @Property(int, notify=viewChanged)
+    def totalPot(self) -> int:
+        return self._view.total_pot
+
+    @Property(str, notify=viewChanged)
+    def street(self) -> str:
+        return self._view.street
+
+    @Property(int, notify=viewChanged)
+    def handNumber(self) -> int:
+        return self._view.hand_number
+
+    @Property(int, notify=viewChanged)
+    def smallBlind(self) -> int:
+        return self._view.small_blind
+
+    @Property(int, notify=viewChanged)
+    def bigBlind(self) -> int:
+        return self._view.big_blind
+
+    @Property(str, notify=viewChanged)
+    def message(self) -> str:
+        return self._view.message
+
+    @Property("QVariantMap", notify=viewChanged)
+    def actions(self) -> dict:
+        return self._actions
+
+    @Property(bool, notify=viewChanged)
+    def humanToAct(self) -> bool:
+        return self._view.actions is not None
+
+    @Property(bool, notify=viewChanged)
+    def handInProgress(self) -> bool:
+        return self._view.hand_in_progress
+
+    @Property(bool, notify=viewChanged)
+    def sessionActive(self) -> bool:
+        return self._view.session_active
