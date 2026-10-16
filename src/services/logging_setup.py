@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import logging.handlers
+import sys
 from pathlib import Path
 
 from PySide6.QtCore import QtMsgType, qInstallMessageHandler
@@ -42,11 +43,13 @@ def configure_logging(level: int = logging.INFO, log_file: Path | None = None) -
             handler.close()
 
     fmt = logging.Formatter("%(asctime)s %(levelname)-7s %(name)s: %(message)s")
-    file_handler = logging.handlers.RotatingFileHandler(
-        log_file, maxBytes=1_000_000, backupCount=3, encoding="utf-8"
-    )
-    stream_handler = logging.StreamHandler()
-    for handler in (file_handler, stream_handler):
+    handlers: list[logging.Handler] = [
+        logging.handlers.RotatingFileHandler(log_file, maxBytes=1_000_000, backupCount=3, encoding="utf-8")
+    ]
+    # Windowed (GUI) executables on Windows have no console: sys.stderr is None.
+    if sys.stderr is not None:
+        handlers.append(logging.StreamHandler())
+    for handler in handlers:
         handler.setFormatter(fmt)
         handler._poker_practice = True  # type: ignore[attr-defined]
         root.addHandler(handler)
