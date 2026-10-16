@@ -5,5 +5,6 @@ Kept thin: no poker rules live here.
 
 from bridge import registry
 from bridge.app_bridge import AppBridge
+from bridge.chips_bridge import ChipsBridge
 
-__all__ = ["AppBridge", "registry"]
+__all__ = ["AppBridge", "ChipsBridge", "registry"]

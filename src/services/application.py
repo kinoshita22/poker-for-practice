@@ -12,7 +12,7 @@ from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine, QQmlError
 from PySide6.QtQuickControls2 import QQuickStyle
 
-from bridge import AppBridge, registry
+from bridge import AppBridge, ChipsBridge, registry
 from bridge.app_bridge import APP_NAME, APP_VERSION
 from services.paths import qml_dir
 
@@ -32,6 +32,7 @@ class AppContext:
 
     engine: QQmlApplicationEngine
     app_bridge: AppBridge
+    chips: ChipsBridge
     qml_warnings: list[str] = field(default_factory=list)
 
 
@@ -47,7 +48,7 @@ def configure_qt_application() -> None:
 def load_ui(app: QGuiApplication) -> AppContext:
     """Create the QML engine, expose bridge objects and load the main window."""
     engine = QQmlApplicationEngine()
-    context = AppContext(engine=engine, app_bridge=AppBridge(engine))
+    context = AppContext(engine=engine, app_bridge=AppBridge(engine), chips=ChipsBridge(parent=engine))
 
     def on_warnings(warnings: list[QQmlError]) -> None:
         for warning in warnings:
@@ -55,6 +56,7 @@ def load_ui(app: QGuiApplication) -> AppContext:
 
     engine.warnings.connect(on_warnings)
     registry.install(context.app_bridge)
+    registry.install(context.chips)
     context.app_bridge.quitRequested.connect(app.quit)
 
     engine.addImportPath(str(qml_dir()))

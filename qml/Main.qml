@@ -26,7 +26,8 @@ ApplicationWindow {
             "table": tableScreen,
             "statistics": statisticsScreen,
             "history": historyScreen,
-            "settings": settingsScreen
+            "settings": settingsScreen,
+            "gallery": galleryScreen
         }[name]
         if (name === "menu") {
             stack.pop(null)
@@ -70,4 +71,11 @@ ApplicationWindow {
     Component { id: statisticsScreen; StatisticsScreen { onBackRequested: window.showScreen("menu") } }
     Component { id: historyScreen; HistoryScreen { onBackRequested: window.showScreen("menu") } }
     Component { id: settingsScreen; SettingsScreen { onBackRequested: window.showScreen("menu") } }
+    Component { id: galleryScreen; GalleryScreen { onBackRequested: window.showScreen("menu") } }
+
+    // Developer shortcut to the card/chip gallery.
+    Shortcut {
+        sequence: "Ctrl+Shift+G"
+        onActivated: window.showScreen("gallery")
+    }
 }

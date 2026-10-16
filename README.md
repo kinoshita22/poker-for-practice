@@ -3,8 +3,8 @@
 A Texas Hold'em practice application for Windows built with Python, PySide6 and Qt Quick/QML.
 **Virtual chips only** — there is no real-money gambling, deposits or withdrawals.
 
-> Status: Phase 2 (poker engine). Gameplay UI, opponents and
-> persistence are implemented in later phases.
+> Status: Phase 3 (poker engine, card and chip components). Table UI, gameplay,
+> opponents and persistence are implemented in later phases.
 
 ## Requirements
 
@@ -60,6 +60,21 @@ python tools/screenshot.py out_dir --sizes 1024x640,1920x1080 --screens menu,tab
 
 Renders each screen offscreen at each size and exits non-zero if QML reported warnings.
 
+### Card and chip gallery
+
+Press **Ctrl+Shift+G** in the running app (or use `--screens gallery` above) to see every card,
+card state, chip denomination, stack and pile.
+
+### Regenerating card artwork
+
+Card faces and the back are generated vector art. After changing `tools/generate_cards.py`:
+
+```bash
+python tools/generate_cards.py      # rewrites assets/cards/*.svg
+```
+
+The test suite fails if the committed SVGs are out of date.
+
 ## Project layout
 
 ```
@@ -69,11 +84,11 @@ src/ai/              computer opponent strategies
 src/services/        application bootstrap, paths, logging; later controller, persistence, statistics
 src/bridge/          QObjects/models exposed to QML (import PokerPractice.Bridge)
 qml/Main.qml         application window and screen navigation
-qml/components/      Theme singleton and reusable controls (cards, chips, seats in later phases)
-qml/screens/         main menu, table, statistics, hand history, settings
-assets/              bundled visual resources
+qml/components/      Theme singleton, controls, PlayingCard, PokerChip, ChipStack, ChipPile
+qml/screens/         main menu, table, statistics, hand history, settings, gallery
+assets/cards/        generated SVG card faces and back
 tests/               pytest suite
-tools/               developer utilities
+tools/               screenshot tool, card artwork generator
 docs/                architecture notes
 ```
 
