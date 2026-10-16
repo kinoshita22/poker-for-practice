@@ -21,10 +21,12 @@ class AppBridge(QObject):
 
     quitRequested = Signal()
     animationsEnabledChanged = Signal(bool)
+    analysisModeChanged = Signal(bool)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._animations_enabled = True
+        self._analysis_mode = False
 
     @staticmethod
     def create(engine: QQmlEngine) -> "AppBridge":
@@ -53,6 +55,17 @@ class AppBridge(QObject):
     animationsEnabled = Property(
         bool, _get_animations_enabled, _set_animations_enabled, notify=animationsEnabledChanged
     )
+
+    def _get_analysis_mode(self) -> bool:
+        return self._analysis_mode
+
+    def _set_analysis_mode(self, enabled: bool) -> None:
+        if enabled != self._analysis_mode:
+            self._analysis_mode = enabled
+            self.analysisModeChanged.emit(enabled)
+
+    # Show opponents' reasoning after each hand.
+    analysisMode = Property(bool, _get_analysis_mode, _set_analysis_mode, notify=analysisModeChanged)
 
     @Slot()
     def requestQuit(self) -> None:

@@ -52,7 +52,9 @@ def test_exposed_cards_visible_before_runout_completes():
             if session.opponent_to_act is not None:
                 session.play_opponent_action()
             elif session.human_to_act:
-                session.apply_human_action("all_in", 0, session.hand.action_count)
+                legal = session.hand.legal_actions()
+                kind = "all_in" if legal.can_all_in else ("call" if legal.can_call else "check")
+                session.apply_human_action(kind, 0, session.hand.action_count)
         if session.session_over:
             break
     pytest.fail("no all-in run-out happened")
@@ -104,7 +106,9 @@ def play_to_session_end(context, qtbot):
         if session.session_over:
             return
         if session.human_to_act:
-            context.game.submitAction("all_in", 0, session.hand.action_count)
+            actions = context.game.property("actions")
+            kind = "all_in" if actions["canAllIn"] else ("call" if actions["canCall"] else "check")
+            context.game.submitAction(kind, 0, actions["step"])
         else:
             context.game.deal()
     pytest.fail("session did not end")

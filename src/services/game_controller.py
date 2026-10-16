@@ -26,7 +26,13 @@ from poker.events import (
     ShowdownRevealed,
     UncalledBetReturned,
 )
-from services.game_session import GameSession, SessionConfig, SessionError, StrategyFactory, passive_factory
+from services.game_session import (
+    GameSession,
+    SessionConfig,
+    SessionError,
+    StrategyFactory,
+    heuristic_factory,
+)
 from services.table_view import TableView
 
 log = logging.getLogger(__name__)
@@ -89,7 +95,7 @@ class GameController(QObject):
         publish: Callable[[TableView], None],
         *,
         timing: Timing = Timing(),
-        strategy_factory: StrategyFactory = passive_factory,
+        strategy_factory: StrategyFactory = heuristic_factory,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)

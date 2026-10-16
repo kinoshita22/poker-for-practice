@@ -176,6 +176,13 @@ class GameBridge(QObject):
     def sessionActive(self) -> bool:
         return self._view.session_active
 
+    @Property("QVariantList", notify=viewChanged)
+    def analysis(self) -> list[dict]:
+        return [
+            {"name": a.name, "street": a.street, "action": a.action, "reason": a.reason, "cards": list(a.cards)}
+            for a in self._view.analysis
+        ]
+
     @Property(bool, notify=viewChanged)
     def canDeal(self) -> bool:
         return self._view.can_deal

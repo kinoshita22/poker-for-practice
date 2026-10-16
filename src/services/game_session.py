@@ -12,12 +12,13 @@ import random
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from ai import PassiveStrategy, Strategy, observe
+from ai import PassiveStrategy, Strategy, create_strategy, observe
 from poker import Action, ActionType, HoldemHand, IllegalActionError, Table
 from poker.events import HandEvent, PlayerActed
-from services.hand_presenter import HandPresenter
+from services.hand_presenter import HandPresenter, action_label
 from services.table_view import (
     ActionView,
+    AnalysisEntry,
     BetPreset,
     PotView,
     SeatView,
@@ -67,7 +68,12 @@ StrategyFactory = Callable[[str, str, random.Random], Strategy]
 
 
 def passive_factory(style: str, difficulty: str, rng: random.Random) -> Strategy:
+    """Calling-station opponents (tests and baselines)."""
     return PassiveStrategy()
+
+
+def heuristic_factory(style: str, difficulty: str, rng: random.Random) -> Strategy:
+    return create_strategy(style, difficulty, rng)
 
 
 def opponent_styles(config: SessionConfig, rng: random.Random) -> list[str]:
@@ -107,7 +113,7 @@ class GameSession:
         self,
         config: SessionConfig,
         *,
-        strategy_factory: StrategyFactory = passive_factory,
+        strategy_factory: StrategyFactory = heuristic_factory,
         rng: random.Random | None = None,
     ) -> None:
         config.validate()
@@ -126,6 +132,8 @@ class GameSession:
         self.slots = display_slots([s.seat for s in self.table.seats], HUMAN_SEAT)
         self.presenter = HandPresenter()
         self.hand_listeners: list[Callable[[HoldemHand], None]] = []
+        # (seat, PlayerActed index, reason) for the current hand's opponent decisions.
+        self._reasons: list[tuple[int, int, str]] = []
 
     # ---------------------------------------------------------------- state
 
@@ -185,6 +193,7 @@ class GameSession:
             raise SessionError("Cannot start a new hand now")
         hand = self.table.start_hand()
         self.presenter = HandPresenter()
+        self._reasons = []
         if hand.is_complete:
             self._notify_complete(hand)
         return hand
@@ -208,9 +217,14 @@ class GameSession:
         if seat is None:
             raise SessionError("No opponent is to act")
         hand = self.hand
-        action = self.strategies[seat].decide(observe(hand, seat))
+        strategy = self.strategies[seat]
+        action = strategy.decide(observe(hand, seat))
+        event_index = len(hand.events)
+        reason = getattr(strategy, "last_reason", "")
         try:
             self._act(seat, action, hand.action_count)
+            if reason:
+                self._reasons.append((seat, event_index, reason))
         except IllegalActionError:
             # A strategy must never stall the table: fall back to the safest legal action.
             log.error("Strategy for seat %s chose illegal %s; falling back", seat, action)
@@ -306,7 +320,27 @@ class GameSession:
             can_deal=self.can_start_hand,
             session_over=self.session_over,
             winning_cards=tuple(sorted(c.code for c in p.winning_cards() if c.code in board_codes)),
+            analysis=self._analysis(),
         )
+
+    def _analysis(self) -> tuple[AnalysisEntry, ...]:
+        """Opponent reasoning with their hole cards, available only after the hand."""
+        if not self.hand_over:
+            return ()
+        hand = self.hand
+        entries = []
+        for seat, index, reason in self._reasons:
+            event = hand.events[index]
+            entries.append(
+                AnalysisEntry(
+                    name=hand.player(seat).name,
+                    street=event.street.value,
+                    action=action_label(event),
+                    reason=reason,
+                    cards=tuple(c.code for c in hand.player(seat).hole),
+                )
+            )
+        return tuple(entries)
 
     def _human_actions(self) -> ActionView | None:
         if not self.human_to_act:

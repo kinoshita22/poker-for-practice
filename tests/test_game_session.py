@@ -197,7 +197,9 @@ def test_session_over_when_human_busts():
             play_until_human_or_end(session)
             if not session.human_to_act:
                 break
-            session.apply_human_action("all_in", 0, session.hand.action_count)
+            legal = session.hand.legal_actions()
+            kind = "all_in" if legal.can_all_in else ("call" if legal.can_call else "check")
+            session.apply_human_action(kind, 0, session.hand.action_count)
     assert session.session_over
     assert not session.can_start_hand
     assert session.build_view().session_over

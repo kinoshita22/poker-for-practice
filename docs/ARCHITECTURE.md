@@ -240,3 +240,34 @@ warnings.
   Table / New Session on the main menu while a session exists.
 - **Fold safety:** folding when checking is free needs a second click ("Fold anyway?").
 - **Result banner** on the felt after each hand.
+
+## Computer opponents (Phase 7)
+
+Practical heuristics, not a solver. All code is in `src/ai/` and sees only `observe(hand, seat)`.
+
+- **Hand strength** (`hand_strength.py`): pre-flop strength is the Chen formula normalised to
+  0..1; post-flop equity is a seeded Monte Carlo estimate against random hands for each live
+  opponent (ties count as shares); draws (flush, open-ended, gutshot/one-ended) give outs.
+  The Monte Carlo budget is expressed in hand evaluations per decision (easy 240, normal 480,
+  hard 800) divided across players, keeping a decision under ~30 ms (95th percentile measured
+  ≈15 ms six-handed on hard), so it can run on the GUI thread between animation frames.
+- **Strategy** (`strategies.py`): one `HeuristicStrategy` parameterised by
+  - a *style*: entry/raise thresholds, call margin over pot odds, value/raise equity thresholds,
+    bluff, semi-bluff and steal rates, bet sizes, short-stack push threshold;
+  - a *difficulty*: estimate noise, Monte Carlo budget, whether position and pot odds are used,
+    and an occasional passive mistake rate.
+
+  Pre-flop: push/fold below 12 big blinds; open-raise, late-position steals, limp or fold when
+  unraised; facing a raise, required strength grows with its size (cheap calls need less).
+  Post-flop: value bets, semi-bluffs with draws, occasional bluffs (more heads-up); facing a bet,
+  compare equity to pot odds plus the style's margin (minus an implied-odds allowance for draws),
+  raise with strong equity.
+- **Legality:** every decision goes through `legalize()` (clamps sizes, turns impossible raises
+  into calls, never folds a free check). The session additionally falls back to check/fold if a
+  strategy ever produced an illegal action, so opponents can never stall the game.
+- **Measured profiles** (six-handed, normal): conservative ≈13 % VPIP / 5 % PFR, balanced
+  ≈25 % / 11 %, aggressive ≈40 % / 24 %.
+- **Analysis mode:** each decision records a reason (e.g. "call: equity 41% vs pot odds 25%").
+  The session exposes the reasons together with the opponents' hole cards *only after the hand
+  is over*; the table's Analysis button shows them when analysis mode is enabled (setup screen).
+- **Mixed style** seats rotate through the three styles from a random start.

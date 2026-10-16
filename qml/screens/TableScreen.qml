@@ -69,6 +69,12 @@ Rectangle {
                 color: Theme.goldBright
             }
             ToolbarButton {
+                objectName: "analysisButton"
+                visible: App.analysisMode && !Game.handInProgress && Game.analysis.length > 0
+                text: "Analysis"
+                onClicked: analysisPopup.open()
+            }
+            ToolbarButton {
                 objectName: "endSessionButton"
                 visible: Game.sessionActive && !Game.sessionOver
                 text: "End Session"
@@ -318,6 +324,12 @@ Rectangle {
         totalPot: Game.totalPot
         bigBlind: Game.bigBlind
         onActionRequested: (kind, amount, step) => root.actionRequested(kind, amount, step)
+    }
+
+    AnalysisPopup {
+        id: analysisPopup
+        objectName: "analysisPopup"
+        entries: Game.analysis
     }
 
     ConfirmDialog {

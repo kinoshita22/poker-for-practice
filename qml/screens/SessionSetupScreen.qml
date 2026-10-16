@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import PokerPractice.Bridge
 import "../components"
 
 // Choose session options before sitting down.
@@ -109,6 +110,14 @@ ScreenScaffold {
                     ]
                     value: root.difficulty
                     onActivated: v => root.difficulty = v
+                }
+
+                FieldLabel { text: "Hand analysis" }
+                SegmentedSelector {
+                    objectName: "analysisSelector"
+                    options: [{ label: "Off", value: false }, { label: "After each hand", value: true }]
+                    value: App.analysisMode
+                    onActivated: v => App.analysisMode = v
                 }
             }
 

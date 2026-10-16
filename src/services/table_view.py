@@ -92,6 +92,17 @@ class ActionView:
 
 
 @dataclass(frozen=True, slots=True)
+class AnalysisEntry:
+    """One opponent decision, explained after the hand (never during it)."""
+
+    name: str
+    street: str
+    action: str
+    reason: str
+    cards: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class TableView:
     seats: tuple[SeatView, ...] = ()
     board: tuple[str, ...] = ()
@@ -108,3 +119,4 @@ class TableView:
     can_deal: bool = False  # a new hand may be started now
     session_over: bool = False  # the human or every opponent is out of chips
     winning_cards: tuple[str, ...] = field(default=())  # board cards to highlight
+    analysis: tuple[AnalysisEntry, ...] = ()  # filled only once the hand is over
