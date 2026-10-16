@@ -1,0 +1,4 @@
+singleton Theme 1.0 Theme.qml
+MenuButton 1.0 MenuButton.qml
+ToolbarButton 1.0 ToolbarButton.qml
+ScreenScaffold 1.0 ScreenScaffold.qml
