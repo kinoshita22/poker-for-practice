@@ -118,7 +118,7 @@ Rectangle {
         readonly property real tableX: (width - tableWidth) / 2
         readonly property real tableY: (height - tableHeight) / 2 - height * 0.01
         // Size unit for seats, cards and chips.
-        readonly property real unit: Math.max(52, Math.min(104, tableWidth / 12))
+        readonly property real unit: Math.max(52, Math.min(160, tableWidth / 12))
 
         // Positions relative to the table rectangle, indexed by display slot
         // (0 = human at the bottom, then clockwise).
@@ -420,47 +420,6 @@ Rectangle {
                     }
                 }
             }
-        }
-    }
-
-    // Rejected actions and other errors, shown briefly over the table.
-    Rectangle {
-        id: toast
-        objectName: "errorToast"
-        property string text: ""
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: actionPanel.top
-        anchors.bottomMargin: Theme.spacing
-        width: toastText.implicitWidth + 32
-        height: toastText.implicitHeight + 14
-        radius: height / 2
-        color: "#e0301a17"
-        border.color: Theme.accentRed
-        opacity: 0
-        visible: opacity > 0
-
-        Text {
-            id: toastText
-            anchors.centerIn: parent
-            text: toast.text
-            font.family: Theme.fontBody
-            font.pixelSize: Theme.fontSizeBody
-            color: Theme.textPrimary
-        }
-
-        SequentialAnimation {
-            id: toastAnimation
-            NumberAnimation { target: toast; property: "opacity"; to: 1; duration: Theme.durationFast }
-            PauseAnimation { duration: 2600 }
-            NumberAnimation { target: toast; property: "opacity"; to: 0; duration: 400 }
-        }
-    }
-
-    Connections {
-        target: root.game
-        function onErrorOccurred(message) {
-            toast.text = message
-            toastAnimation.restart()
         }
     }
 

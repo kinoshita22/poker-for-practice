@@ -3,8 +3,7 @@
 A Texas Hold'em practice application for Windows built with Python, PySide6 and Qt Quick/QML.
 **Virtual chips only** — there is no real-money gambling, deposits or withdrawals.
 
-> Status: Phase 8 (gameplay, computer opponents, hand history, replay, statistics and
-> settings). Polishing and Windows packaging follow.
+> Status: Phase 9 (feature complete and polished). Windows packaging follows.
 
 ## Requirements
 
@@ -110,6 +109,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for design decisions.
   QML errors are forwarded there.
 - **"The history database was damaged and has been reset":** the old file was kept next to the
   new one as `poker_practice.corrupt-<date>.db`; the app continues with an empty history.
+- **"Something went wrong" dialog:** an unexpected error was logged with full details in the
+  log file named in the dialog; please include it when reporting a problem.
 - **Starting over:** Settings → *Delete hand history and statistics*, or delete
   `poker_practice.db` from the data directory while the app is closed.
 - **Linux: `Could not load the Qt platform plugin "xcb"`:** install the system package

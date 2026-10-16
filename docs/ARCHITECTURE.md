@@ -323,3 +323,22 @@ showdowns), biggest pot won. Tests check the SQL aggregates against the pure-Pyt
 hand analysis, chip colour scheme (classic / vivid), and the last-used session options (which
 pre-fill the setup screen). `Settings` bridge properties persist immediately and are applied to
 the chips bridge and the game controller through a subscription.
+
+## Polish and reliability (Phase 9)
+
+- **Layouts** checked at 1024×640, 1024×768, 1280×800, 1366×768, 1920×1080, 2560×1080 and
+  2560×1440, and at 1.5×/2× device pixel ratios. The table's size unit scales up to 160 px so
+  cards, chips and seats stay in proportion on large windows; chrome uses fixed sizes and relies
+  on the operating system's display scaling.
+- **No replayed animations:** cards already on the board when the table appears (returning from
+  the menu, replays) are shown immediately; only newly dealt cards animate.
+- **Reduced motion:** with animations off, screen transitions are immediate, cards appear face
+  up at once and the controller's pauses shrink to 30 %.
+- **Errors:** recoverable problems from any bridge (rejected actions, storage failures) appear
+  in one window-level toast. Unexpected exceptions — including those raised inside Qt callbacks,
+  which cannot propagate — go through `install_exception_hook`: logged with traceback and shown
+  in a dialog that names the log file.
+- **Window geometry** (size, position, maximized) is saved on close and restored at start if it
+  still fits the available screen area.
+- **Icon:** `tools/generate_icon.py` writes `assets/icon/app.svg`, `app.png` (window icon) and a
+  multi-size `app.ico` (PNG-in-ICO) for the Windows executable.

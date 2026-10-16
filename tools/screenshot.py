@@ -60,7 +60,7 @@ def main() -> int:
         window.resize(width, height)
         for screen in args.screens.split(","):
             window.showScreen(screen)
-            wait(400)  # let transitions finish
+            wait(1000)  # let screen transitions and card animations finish
             image = window.grabWindow()
             suffix = f"_{args.preview}" if screen == "table" and args.preview != "none" else ""
             path = args.output_dir / f"{screen}{suffix}_{width}x{height}.png"

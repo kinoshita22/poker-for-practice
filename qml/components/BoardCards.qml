@@ -11,6 +11,10 @@ Row {
 
     spacing: cardWidth * 0.12
 
+    // Cards already on the board when the table is shown appear without animation.
+    property bool ready: false
+    Component.onCompleted: ready = true
+
     Repeater {
         model: 5
         Item {
@@ -43,7 +47,7 @@ Row {
                 }
                 // Slide in face down, then turn over (flop cards one after another).
                 onCodeChanged: {
-                    if (code === "" || !root.animated) {
+                    if (code === "" || !root.animated || !root.ready) {
                         landed = true
                         return
                     }

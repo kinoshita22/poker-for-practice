@@ -110,6 +110,16 @@ class SettingsBridge(QObject):
         cleaned = AppSettings.clean_session_defaults(values)
         self._update(session_defaults={**self._settings.session_defaults, **cleaned})
 
+    @Property("QVariantMap", notify=changed)
+    def windowGeometry(self) -> dict:
+        return dict(self._settings.window)
+
+    @Slot("QVariantMap")
+    def saveWindowGeometry(self, geometry: dict) -> None:
+        cleaned = AppSettings.clean_window(geometry)
+        if cleaned:
+            self._update(window=cleaned)
+
     @Property(str, constant=True)
     def recoveryNotice(self) -> str:
         """Non-empty when the database had to be recreated at startup."""

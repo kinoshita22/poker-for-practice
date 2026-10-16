@@ -19,3 +19,4 @@ ConfirmDialog 1.0 ConfirmDialog.qml
 AnalysisPopup 1.0 AnalysisPopup.qml
 ReplayControls 1.0 ReplayControls.qml
 StatTile 1.0 StatTile.qml
+ErrorToast 1.0 ErrorToast.qml

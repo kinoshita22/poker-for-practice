@@ -51,6 +51,7 @@ class AppSettings:
     auto_deal: bool = False
     chip_scheme: str = "classic"
     session_defaults: Mapping[str, Any] = field(default_factory=lambda: dict(DEFAULT_SESSION))
+    window: Mapping[str, int] = field(default_factory=dict)  # x, y, width, height, maximized
 
     @classmethod
     def from_mapping(cls, values: Mapping[str, Any]) -> "AppSettings":
@@ -74,6 +75,7 @@ class AppSettings:
             auto_deal=flag("auto_deal", settings.auto_deal),
             chip_scheme=scheme if scheme in CHIP_SCHEMES else settings.chip_scheme,
             session_defaults=session,
+            window=cls.clean_window(values.get("window")),
         )
 
     def to_mapping(self) -> dict[str, Any]:
@@ -83,7 +85,22 @@ class AppSettings:
             "auto_deal": self.auto_deal,
             "chip_scheme": self.chip_scheme,
             "session_defaults": dict(self.session_defaults),
+            "window": dict(self.window),
         }
+
+    @staticmethod
+    def clean_window(value: Any) -> dict[str, int]:
+        """Window geometry with sane integer values, or {} if unusable."""
+        if not isinstance(value, Mapping):
+            return {}
+        try:
+            geometry = {key: int(value[key]) for key in ("x", "y", "width", "height")}
+        except (KeyError, TypeError, ValueError):
+            return {}
+        if not (640 <= geometry["width"] <= 16384 and 480 <= geometry["height"] <= 16384):
+            return {}
+        geometry["maximized"] = int(bool(value.get("maximized", 0)))
+        return geometry
 
     @staticmethod
     def clean_session_defaults(values: Mapping[str, Any]) -> dict[str, Any]:
