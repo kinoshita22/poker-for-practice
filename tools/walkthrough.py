@@ -4,7 +4,8 @@ Usage:
     python tools/walkthrough.py OUTPUT_DIR [--hands 6] [--size 1280x800] [--policy call|random]
 
 Clicks the same buttons a player would (menu -> setup -> table -> action
-buttons -> Next Hand), checks chip conservation after every hand, and exits
+buttons -> click the table for the next hand), checks chip conservation after
+every hand, and exits
 non-zero on QML warnings or inconsistencies.
 """
 
@@ -22,8 +23,9 @@ sys.path.insert(0, str(ROOT / "src"))
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("POKER_PRACTICE_DATA_DIR", tempfile.mkdtemp(prefix="poker-walkthrough-"))
 
-from PySide6.QtCore import QEventLoop, QTimer  # noqa: E402
+from PySide6.QtCore import QEventLoop, QPoint, QPointF, Qt, QTimer  # noqa: E402
 from PySide6.QtGui import QGuiApplication  # noqa: E402
+from PySide6.QtTest import QTest  # noqa: E402
 
 from services.application import configure_qt_application, load_ui  # noqa: E402
 from services.game_controller import Timing  # noqa: E402
@@ -50,6 +52,17 @@ def click(window, name) -> bool:
     if item is None or not item.isEnabled():
         return False
     item.clicked.emit()
+    return True
+
+
+def click_table(window) -> bool:
+    """A real mouse click on the middle of the felt (deals the next hand)."""
+    area = find(window, "dealArea")
+    if area is None or not area.property("enabled"):  # MouseArea.enabled, not Item.enabled
+        return False
+    centre = area.mapToScene(QPointF(area.width() / 2, area.height() * 0.3))
+    QTest.mouseClick(window, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier,
+                     QPoint(int(centre.x()), int(centre.y())))
     return True
 
 
@@ -129,7 +142,7 @@ def main() -> int:
         if session.session_over:
             print("Session over")
             break
-        assert click(window, "dealButton"), "Next Hand button"
+        assert click_table(window), "click on the table to deal"
 
     print(f"Hands: {hands_done}, human decisions: {decisions}")
 

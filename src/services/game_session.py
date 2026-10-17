@@ -324,7 +324,7 @@ class GameSession:
     def message(self) -> str:
         hand = self.hand
         if hand is None:
-            return "Press Deal to start the first hand"
+            return "Click the table to deal the first hand"
         if self.hand_over:
             text = self.result_message()
             if self.human_busted:

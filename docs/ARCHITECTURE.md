@@ -219,7 +219,8 @@ QML ── Game.submitAction(kind, amount, step) ──► GameBridge ──► 
 
 ### QA tools
 `tools/walkthrough.py OUT --hands N` drives the real UI (Play → Start Session → action buttons →
-Next Hand), screenshots each street and hand result, checks chip conservation and fails on QML
+a click on the table for the next hand), screenshots each street and hand result, checks chip
+conservation and fails on QML
 warnings.
 
 ## Complete gameplay (Phase 6)
@@ -235,7 +236,8 @@ warnings.
   instead of recreating them.
 - **Animations preference:** `App.animationsEnabled` disables QML motion and reduces controller
   pauses to 30 % (events still arrive in order).
-- **Session flow:** Deal / Next Hand (also Space/Enter), End Session with confirmation, a
+- **Session flow:** once a hand is over, clicking the table deals the next one (also
+  Space/Enter; the result banner shows the hint), End Session with confirmation, a
   session-over overlay (Play Again with the same settings, New Session, Main Menu), and Resume
   Table / New Session on the main menu while a session exists.
 - **Fold safety:** folding when checking is free needs a second click ("Fold anyway?").

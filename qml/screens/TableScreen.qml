@@ -83,17 +83,6 @@ Rectangle {
                 text: "End Session"
                 onClicked: endDialog.open()
             }
-            ActionButton {
-                objectName: "dealButton"
-                Layout.preferredHeight: 34
-                implicitWidth: 132
-                variant: "primary"
-                text: root.game.handNumber === 0 ? "Deal" : "Next Hand"
-                shortcutHint: ""
-                enabled: root.game.canDeal
-                visible: !root.replayMode && root.game.canDeal
-                onClicked: root.dealRequested()
-            }
         }
 
         Rectangle {
@@ -162,6 +151,15 @@ Rectangle {
                     onFinished: flyer.destroy()
                 }
             }
+        }
+
+        // Once a hand is over, clicking anywhere on the table deals the next one.
+        MouseArea {
+            objectName: "dealArea"
+            anchors.fill: parent
+            enabled: !root.replayMode && root.game.canDeal
+            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onClicked: root.dealRequested()
         }
 
         PokerTable {
@@ -284,28 +282,52 @@ Rectangle {
             }
         }
 
-        // Hand result on the felt.
+        // Hand result on the felt, with the hint to deal the next hand. It sits
+        // where the pot was (the pot has been paid out once the hand is over).
         Rectangle {
             objectName: "resultBanner"
             anchors.horizontalCenter: parent.horizontalCenter
-            y: area.py([0, 0.62])
+            y: board.y - height - area.unit * 0.12
             visible: root.game.sessionActive && !root.game.handInProgress && root.game.handNumber > 0 && root.game.message !== ""
-            width: Math.min(area.tableWidth * 0.7, resultText.implicitWidth + 40)
-            height: resultText.implicitHeight + 14
-            radius: height / 2
+            width: Math.min(area.tableWidth * 0.7, Math.max(resultText.implicitWidth, dealHint.implicitWidth) + 40)
+            height: bannerColumn.implicitHeight + 14
+            radius: Math.min(height / 2, 22)
             color: "#cc0d0c0b"
             border.width: 1
             border.color: Theme.goldDim
 
-            Text {
-                id: resultText
+            Column {
+                id: bannerColumn
                 anchors.centerIn: parent
-                width: Math.min(implicitWidth, parent.width - 24)
-                elide: Text.ElideRight
-                text: root.game.message
-                font.family: Theme.fontDisplay
-                font.pixelSize: Math.max(13, area.unit * 0.2)
-                color: Theme.goldBright
+                spacing: 2
+
+                Text {
+                    id: resultText
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: Math.min(implicitWidth, area.tableWidth * 0.7 - 24)
+                    elide: Text.ElideRight
+                    text: root.game.message
+                    font.family: Theme.fontDisplay
+                    font.pixelSize: Math.max(13, area.unit * 0.2)
+                    color: Theme.goldBright
+                }
+                Text {
+                    id: dealHint
+                    objectName: "dealHint"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    visible: !root.replayMode && root.game.canDeal
+                    text: "Click the table to deal the next hand"
+                    font.family: Theme.fontBody
+                    font.pixelSize: Math.max(11, area.unit * 0.14)
+                    color: Theme.textSecondary
+
+                    SequentialAnimation on opacity {
+                        running: dealHint.visible && root.animated
+                        loops: Animation.Infinite
+                        NumberAnimation { from: 1.0; to: 0.5; duration: 1100; easing.type: Easing.InOutSine }
+                        NumberAnimation { from: 0.5; to: 1.0; duration: 1100; easing.type: Easing.InOutSine }
+                    }
+                }
             }
         }
 
@@ -423,7 +445,7 @@ Rectangle {
         }
     }
 
-    // Space / Enter deals the next hand.
+    // Space / Enter also deals the next hand (keyboard alternative to clicking the table).
     Shortcut { sequences: ["Space", "Return"]; enabled: root.game.canDeal; onActivated: root.dealRequested() }
 
     // Keyboard shortcuts for the betting actions.

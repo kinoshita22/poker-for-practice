@@ -64,8 +64,8 @@ python main.py --self-test     # verify resources and play automated hands, then
 
    Set the bet size with the presets, the slider or the amount field. Folding when you could
    check needs a second click.
-3. **Next Hand** (or Space/Enter) deals the next hand. You can also turn on *Deal next hand
-   automatically* in Settings.
+3. When a hand is over, **click the table** (or press Space/Enter) to deal the next hand. You can
+   also turn on *Deal next hand automatically* in Settings.
 4. **Statistics** and **Hand History** (with **Replay**) are on the main menu.
 5. **Settings** controls animations, auto-deal, hand analysis and chip colours, and lets you
    delete your history.
