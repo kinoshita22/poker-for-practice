@@ -3,8 +3,8 @@
 A Texas Hold'em practice application for Windows built with Python, PySide6 and Qt Quick/QML.
 **Virtual chips only** — there is no real-money gambling, deposits or withdrawals.
 
-> Status: Phase 3 (poker engine, card and chip components). Table UI, gameplay,
-> opponents and persistence are implemented in later phases.
+> Status: Phase 8 (gameplay, computer opponents, hand history, replay, statistics and
+> settings). Polishing and Windows packaging follow.
 
 ## Requirements
 
@@ -34,7 +34,8 @@ uv pip install --python .venv -r requirements-dev.txt
 python main.py
 ```
 
-User data (logs; later the SQLite database) is stored outside the installation folder:
+User data (SQLite database with hand history, statistics and settings; logs) is stored outside
+the installation folder:
 
 | Platform | Location |
 | --- | --- |
@@ -59,6 +60,15 @@ python tools/screenshot.py out_dir --sizes 1024x640,1920x1080 --screens menu,tab
 ```
 
 Renders each screen offscreen at each size and exits non-zero if QML reported warnings.
+
+### UI walkthrough
+
+```bash
+python tools/walkthrough.py out_dir --hands 6
+```
+
+Plays hands through the real interface (clicking the same buttons a player would), saving a
+screenshot per street and per result, and fails on QML warnings or chip inconsistencies.
 
 ### Card and chip gallery
 
@@ -98,5 +108,9 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for design decisions.
 
 - **Blank window or startup failure:** check the log file in `<data dir>/logs/poker_practice.log`;
   QML errors are forwarded there.
+- **"The history database was damaged and has been reset":** the old file was kept next to the
+  new one as `poker_practice.corrupt-<date>.db`; the app continues with an empty history.
+- **Starting over:** Settings → *Delete hand history and statistics*, or delete
+  `poker_practice.db` from the data directory while the app is closed.
 - **Linux: `Could not load the Qt platform plugin "xcb"`:** install the system package
   `libxcb-cursor0`.

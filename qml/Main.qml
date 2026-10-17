@@ -27,6 +27,8 @@ ApplicationWindow {
             "statistics": statisticsScreen,
             "history": historyScreen,
             "settings": settingsScreen,
+            "setup": setupScreen,
+            "replay": replayScreen,
             "gallery": galleryScreen
         }[name]
         if (name === "menu") {
@@ -47,7 +49,8 @@ ApplicationWindow {
         anchors.fill: parent
 
         initialItem: MainMenuScreen {
-            onPlayRequested: window.showScreen("table")
+            onPlayRequested: window.showScreen(Game.sessionActive ? "table" : "setup")
+            onNewSessionRequested: window.showScreen("setup")
             onStatisticsRequested: window.showScreen("statistics")
             onHistoryRequested: window.showScreen("history")
             onSettingsRequested: window.showScreen("settings")
@@ -67,10 +70,53 @@ ApplicationWindow {
         }
     }
 
-    Component { id: tableScreen; TableScreen { onBackRequested: window.showScreen("menu") } }
+    Component {
+        id: tableScreen
+        TableScreen {
+            onBackRequested: window.showScreen("menu")
+            onActionRequested: (kind, amount, step) => Game.submitAction(kind, amount, step)
+            animated: Settings.animationsEnabled
+            onDealRequested: Game.deal()
+            onNewSessionRequested: window.showScreen("setup")
+            onSessionEnded: window.showScreen("menu")
+        }
+    }
     Component { id: statisticsScreen; StatisticsScreen { onBackRequested: window.showScreen("menu") } }
-    Component { id: historyScreen; HistoryScreen { onBackRequested: window.showScreen("menu") } }
+    Component {
+        id: historyScreen
+        HistoryScreen {
+            onBackRequested: window.showScreen("menu")
+            onReplayRequested: handId => {
+                if (Replay.load(handId))
+                    window.showScreen("replay")
+            }
+        }
+    }
+    Component {
+        id: replayScreen
+        TableScreen {
+            game: Replay
+            replayMode: true
+            animated: false
+            onBackRequested: {
+                Replay.stop()
+                window.showScreen("history")
+            }
+        }
+    }
     Component { id: settingsScreen; SettingsScreen { onBackRequested: window.showScreen("menu") } }
+    Component {
+        id: setupScreen
+        SessionSetupScreen {
+            defaults: Settings.sessionDefaults
+            onBackRequested: window.showScreen("menu")
+            onStartRequested: config => {
+                Settings.saveSessionDefaults(config)
+                if (Game.startSession(config))
+                    window.showScreen("table")
+            }
+        }
+    }
     Component { id: galleryScreen; GalleryScreen { onBackRequested: window.showScreen("menu") } }
 
     // Developer shortcut to the card/chip gallery.

@@ -8,6 +8,7 @@ Rectangle {
     id: root
 
     signal playRequested()
+    signal newSessionRequested()
     signal statisticsRequested()
     signal historyRequested()
     signal settingsRequested()
@@ -73,9 +74,16 @@ Rectangle {
         MenuButton {
             objectName: "playButton"
             Layout.alignment: Qt.AlignHCenter
-            text: "Play"
+            text: Game.sessionActive ? "Resume Table" : "Play"
             primary: true
             onClicked: root.playRequested()
+        }
+        MenuButton {
+            objectName: "newSessionMenuButton"
+            Layout.alignment: Qt.AlignHCenter
+            visible: Game.sessionActive
+            text: "New Session"
+            onClicked: root.newSessionRequested()
         }
         MenuButton {
             objectName: "statisticsButton"
@@ -100,6 +108,27 @@ Rectangle {
             Layout.alignment: Qt.AlignHCenter
             text: "Quit"
             onClicked: App.requestQuit()
+        }
+    }
+
+    Rectangle {
+        objectName: "startupNotice"
+        anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: Theme.spacingLarge }
+        visible: Settings.recoveryNotice !== ""
+        width: Math.min(parent.width - 48, noticeText.implicitWidth + 32)
+        height: noticeText.implicitHeight + 16
+        radius: Theme.radius
+        color: "#3a2a1a"
+        border.color: Theme.goldDim
+        Text {
+            id: noticeText
+            anchors.centerIn: parent
+            width: Math.min(implicitWidth, parent.parent.width - 80)
+            wrapMode: Text.WordWrap
+            text: Settings.recoveryNotice
+            font.family: Theme.fontBody
+            font.pixelSize: Theme.fontSizeSmall
+            color: Theme.textPrimary
         }
     }
 
