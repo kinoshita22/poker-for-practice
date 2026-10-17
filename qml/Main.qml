@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls.Basic
+import QtQuick.Window
 import PokerPractice.Bridge
 import "components"
 import "screens"
@@ -31,11 +32,12 @@ ApplicationWindow {
             "replay": replayScreen,
             "gallery": galleryScreen
         }[name]
+        const animate = Settings.animationsEnabled
         if (name === "menu") {
-            stack.pop(null)
+            stack.pop(null, animate ? StackView.PopTransition : StackView.Immediate)
         } else if (component) {
             stack.pop(null, StackView.Immediate)
-            stack.push(component)
+            stack.push(component, {}, animate ? StackView.PushTransition : StackView.Immediate)
         } else {
             console.warn("Unknown screen", name)
             return
@@ -43,6 +45,33 @@ ApplicationWindow {
         currentScreen = name
     }
 
+    // ------------------------------------------------------------ geometry
+    // Restore the last window size/position if it still fits on a screen.
+    function restoreGeometry() {
+        const g = Settings.windowGeometry
+        if (g.width === undefined)
+            return
+        const fits = g.x >= -50 && g.y >= -50
+                  && g.x + 100 <= Screen.desktopAvailableWidth && g.y + 100 <= Screen.desktopAvailableHeight
+        width = Math.max(minimumWidth, g.width)
+        height = Math.max(minimumHeight, g.height)
+        if (fits) {
+            x = g.x
+            y = g.y
+        }
+        if (g.maximized)
+            visibility = Window.Maximized
+    }
+
+    function saveGeometry() {
+        const maximized = visibility === Window.Maximized
+        Settings.saveWindowGeometry({ x: x, y: y, width: width, height: height, maximized: maximized })
+    }
+
+    Component.onCompleted: restoreGeometry()
+    onClosing: saveGeometry()
+
+    // ------------------------------------------------------------ screens
     StackView {
         id: stack
         objectName: "screenStack"
@@ -118,6 +147,37 @@ ApplicationWindow {
         }
     }
     Component { id: galleryScreen; GalleryScreen { onBackRequested: window.showScreen("menu") } }
+
+    // ------------------------------------------------------------ feedback
+    // Recoverable problems from any part of the app (rejected actions, storage errors).
+    ErrorToast {
+        id: toast
+        objectName: "errorToast"
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 132
+        z: 100
+    }
+    Connections { target: Game; function onErrorOccurred(message) { toast.show(message) } }
+    Connections { target: Replay; function onErrorOccurred(message) { toast.show(message) } }
+    Connections { target: Settings; function onErrorOccurred(message) { toast.show(message) } }
+    Connections { target: Stats; function onErrorOccurred(message) { toast.show(message) } }
+
+    // Unexpected internal errors: logged in Python, explained here.
+    ConfirmDialog {
+        id: errorDialog
+        objectName: "errorDialog"
+        title: "Something went wrong"
+        cancelText: "Close"
+        confirmText: "Continue"
+    }
+    Connections {
+        target: App
+        function onErrorReported(message) {
+            errorDialog.text = message + "\n\nThe details were written to the log file:\n" + App.logFile
+            errorDialog.open()
+        }
+    }
 
     // Developer shortcut to the card/chip gallery.
     Shortcut {

@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from PySide6.QtCore import QCoreApplication, QTimer, QUrl
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtGui import QGuiApplication, QIcon
 from PySide6.QtQml import QQmlApplicationEngine, QQmlError
 from PySide6.QtQuickControls2 import QQuickStyle
 
@@ -22,7 +22,7 @@ from bridge.stats_bridge import HistoryBridge, StatsBridge
 from services.database import DB_FILE_NAME, Database, DatabaseError
 from services.game_controller import GameController
 from services.history import HistoryStore
-from services.paths import qml_dir, user_data_dir
+from services.paths import assets_dir, qml_dir, user_data_dir
 from services.recorder import HistoryRecorder
 from services.settings import AUTO_DEAL_DELAY_MS, CHIP_SCHEMES, AppSettings
 
@@ -91,6 +91,7 @@ def open_database(path: Path | None = None) -> tuple[Database, str]:
 
 def load_ui(app: QGuiApplication, db_path: Path | None = None) -> AppContext:
     """Create services, expose bridge objects to QML and load the main window."""
+    app.setWindowIcon(QIcon(str(assets_dir() / "icon" / "app.png")))
     engine = QQmlApplicationEngine()
     db, notice = open_database(db_path)
     store = HistoryStore(db)
@@ -150,6 +151,21 @@ def load_ui(app: QGuiApplication, db_path: Path | None = None) -> AppContext:
     return context
 
 
+def install_exception_hook(context: AppContext) -> None:
+    """Log unexpected exceptions and tell the user instead of failing silently.
+
+    Exceptions raised inside Qt callbacks (slots, timers) cannot propagate to
+    the caller; without this hook they would only be printed to stderr.
+    """
+
+    def hook(exc_type, exc, tb) -> None:
+        log.critical("Unhandled exception", exc_info=(exc_type, exc, tb))
+        if not issubclass(exc_type, KeyboardInterrupt):
+            context.app_bridge.errorReported.emit(f"{exc_type.__name__}: {exc}")
+
+    sys.excepthook = hook
+
+
 def install_quit_on_signals(app: QGuiApplication) -> QTimer:
     """Quit cleanly on Ctrl+C / SIGTERM.
 
@@ -183,6 +199,7 @@ def run(argv: list[str] | None = None) -> int:
         log.exception("Unable to start the user interface")
         return 1
 
+    install_exception_hook(context)
     install_quit_on_signals(app)
     exit_code = app.exec()
     context.shutdown()
