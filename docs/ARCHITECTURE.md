@@ -342,3 +342,23 @@ the chips bridge and the game controller through a subscription.
   still fits the available screen area.
 - **Icon:** `tools/generate_icon.py` writes `assets/icon/app.svg`, `app.png` (window icon) and a
   multi-size `app.ico` (PNG-in-ICO) for the Windows executable.
+
+## Testing and packaging (Phase 10)
+
+- **Self-test** (`main.py --self-test`, `services/self_test.py`) runs inside the packaged build:
+  all card SVGs render through the bundled SVG plugin, textures and icon load, every screen opens
+  without QML errors, complete hands are played against the computer opponents with chip
+  conservation checked, hands are recorded and replayed, and the replay leaves history
+  untouched. Results are printed and logged (windowed builds have no console); the exit status
+  is 0 on success. Running it twice against the same data directory proves persistence.
+- **PyInstaller** (`packaging/PokerPractice.spec`): one-folder build, windowed, icon and version
+  resource on Windows. `qml/` and `assets/` are bundled as data; at run time
+  `services.paths.resource_root()` resolves to `sys._MEIPASS` (the `_internal` folder) while
+  user data still goes to `%APPDATA%\PokerPractice`.
+- **Bundle filter** (`packaging/bundle_filter.py`): PyInstaller's Qt hooks pull every QML module
+  and its libraries (QtWebEngine alone ~200 MB). The filter keeps only the QML modules the app
+  imports, drops unused Qt libraries, Controls styles, plugins and translations (Linux bundle
+  522 MB → ~200 MB) and is unit-tested for both Linux and Windows path layouts.
+- **Logging in windowed builds:** the stderr handler is only installed when `sys.stderr` exists.
+- **CI:** `.github/workflows/windows-build.yml` runs `packaging/build_windows.ps1` (tests, build,
+  two self-test runs of the executable) on `windows-latest` and uploads the build.
