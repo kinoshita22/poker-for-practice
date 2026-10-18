@@ -118,5 +118,8 @@ class TableView:
     session_active: bool = False
     can_deal: bool = False  # a new hand may be started now
     session_over: bool = False  # the human or every opponent is out of chips
+    blind_interval: int = 0  # hands per blind level; 0 = blinds are fixed
+    blind_level: int = 0  # 0-based level of the hand on the table
+    hands_to_next_level: int = 0  # hands left at this level; 0 = blinds go up next hand
     winning_cards: tuple[str, ...] = field(default=())  # board cards to highlight
     analysis: tuple[AnalysisEntry, ...] = ()  # filled only once the hand is over

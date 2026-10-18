@@ -364,3 +364,14 @@ the chips bridge and the game controller through a subscription.
 - **Logging in windowed builds:** the stderr handler is only installed when `sys.stderr` exists.
 - **CI:** `.github/workflows/windows-build.yml` runs `packaging/build_windows.ps1` (tests, build,
   two self-test runs of the executable) on `windows-latest` and uploads the build.
+
+## Rising blinds
+
+`SessionConfig.blind_increase_every` (0, 5, 10 or 20 hands; chosen on the setup screen and saved
+with the session defaults) turns on tournament-style blind levels. `services/blinds.py` defines the
+schedule: the small blind is a whole-number multiple of the starting small blind
+(×1, 2, 3, 5, 10, 15, 20, 30, …, then growing by half per level) and the big blind is always twice
+the small blind, so every level is an integer. `GameSession.start_hand()` sets the table's blinds
+for the next hand before dealing. The view carries the interval, the level of the hand on the table
+and the hands left at that level (counting a hand in progress; 0 = "blinds go up next hand"), which
+the table's top bar displays. Stacks are never topped up: chips are only won or lost.

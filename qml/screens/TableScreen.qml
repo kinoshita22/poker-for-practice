@@ -10,6 +10,17 @@ Rectangle {
 
     property var game: Game
     property bool replayMode: false
+
+    // " · Level 2 · next in 4 hands" when blinds rise during the session.
+    readonly property string blindSchedule: {
+        if (replayMode || game.blindInterval <= 0)
+            return ""
+        const level = "   \u00b7   Level " + (game.blindLevel + 1)
+        const left = game.handsToNextLevel
+        if (left <= 0)
+            return level + " \u00b7 blinds go up next hand"
+        return level + " \u00b7 next in " + left + (left === 1 ? " hand" : " hands")
+    }
     property bool animated: true
 
     signal backRequested()
@@ -57,6 +68,7 @@ Rectangle {
                 visible: root.game.handNumber > 0
                 text: "Hand #" + root.game.handNumber + "   ·   Blinds "
                       + Theme.formatChips(root.game.smallBlind) + " / " + Theme.formatChips(root.game.bigBlind)
+                      + root.blindSchedule
                 font.family: Theme.fontBody
                 font.pixelSize: Theme.fontSizeBody - 1
                 color: Theme.textSecondary

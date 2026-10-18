@@ -56,6 +56,10 @@ python main.py --self-test     # verify resources and play automated hands, then
 ### Playing
 
 1. **Play** → choose opponents, stack, blinds, opponent style and difficulty → **Start Session**.
+   *Blinds increase* makes the blinds rise every 5, 10 or 20 hands, as in a tournament
+   (for example 10/20 → 20/40 → 30/60 → 50/100 → 100/200 …). The table's top bar shows the level and
+   how many hands remain until the next increase. The default, *Never*, keeps the blinds fixed all
+   session, as in a cash game.
 2. Act with the buttons, or with keyboard shortcuts:
    - **F** fold
    - **C** check/call

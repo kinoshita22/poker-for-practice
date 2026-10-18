@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from ai import PassiveStrategy, Strategy, create_strategy, observe
 from poker import Action, ActionType, HoldemHand, IllegalActionError, Table
 from poker.events import HandEvent, PlayerActed
+from services import blinds
 from services.hand_presenter import HandPresenter, action_label
 from services.table_view import (
     ActionView,
@@ -54,6 +55,7 @@ class SessionConfig:
     difficulty: str = "normal"
     human_name: str = "You"
     seed: int | None = None
+    blind_increase_every: int = 0  # hands per blind level; 0 = blinds stay fixed
 
     def validate(self) -> None:
         if not 1 <= self.opponents <= len(OPPONENT_NAMES):
@@ -68,6 +70,8 @@ class SessionConfig:
             raise SessionError(f"Unknown difficulty {self.difficulty!r}")
         if not self.human_name.strip():
             raise SessionError("Player name cannot be empty")
+        if self.blind_increase_every not in blinds.INTERVALS:
+            raise SessionError(f"Blinds can increase every {', '.join(map(str, blinds.INTERVALS[1:]))} hands")
 
 
 StrategyFactory = Callable[[str, str, random.Random], Strategy]
@@ -197,12 +201,37 @@ class GameSession:
     def start_hand(self) -> HoldemHand:
         if not self.can_start_hand:
             raise SessionError("Cannot start a new hand now")
+        self.table.set_blinds(*self.next_blinds())
         hand = self.table.start_hand()
         self.presenter = HandPresenter()
         self._reasons = []
         if hand.is_complete:
             self._notify_complete(hand)
         return hand
+
+    @property
+    def blind_level(self) -> int:
+        """Level of the hand on the table (the last one dealt); 0 before the first hand."""
+        dealt = self.table.hand_number
+        return blinds.level_for_hand(max(0, dealt - 1), self.config.blind_increase_every)
+
+    def next_blinds(self) -> tuple[int, int]:
+        """Blinds for the next hand to be dealt."""
+        level = blinds.level_for_hand(self.table.hand_number, self.config.blind_increase_every)
+        return blinds.blinds_at(level, self.config.small_blind, self.config.big_blind)
+
+    def hands_to_next_level(self) -> int:
+        """Hands still to be played at the current level, counting a hand in progress.
+
+        0 means the blinds go up with the next hand (always 0 when blinds are fixed).
+        """
+        every = self.config.blind_increase_every
+        if every <= 0:
+            return 0
+        if self.table.hand_number == 0:
+            return every
+        in_progress = 1 if self.hand is not None and not self.hand_over else 0
+        return every * (self.blind_level + 1) - self.table.hand_number + in_progress
 
     def next_event(self) -> HandEvent | None:
         """Present the next unpresented engine event, if any."""
@@ -277,6 +306,9 @@ class GameSession:
             session_active=True,
             can_deal=self.can_start_hand,
             session_over=self.session_over,
+            blind_interval=self.config.blind_increase_every,
+            blind_level=self.blind_level,
+            hands_to_next_level=self.hands_to_next_level(),
             winning_cards=winning_board_cards(p),
             analysis=self._analysis(),
         )

@@ -9,6 +9,7 @@ from PySide6.QtQml import QmlNamedElement, QmlSingleton, QQmlEngine
 
 from bridge.player_model import PlayerListModel
 from bridge.registry import QML_IMPORT_MAJOR_VERSION, QML_IMPORT_NAME, singleton_instance
+from services import blinds
 from services.game_session import SessionConfig, SessionError
 from services.table_view import ActionView, TableView
 
@@ -76,6 +77,7 @@ class GameBridge(QObject):
                 big_blind=int(options.get("bigBlind", 20)),
                 opponent_style=str(options.get("opponentStyle", "mixed")),
                 difficulty=str(options.get("difficulty", "normal")),
+                blind_increase_every=int(options.get("blindIncreaseEvery", 0)),
             )
             config.validate()
         except (SessionError, ValueError, TypeError) as exc:
@@ -91,6 +93,12 @@ class GameBridge(QObject):
     @Slot(result=bool)
     def deal(self) -> bool:
         return self._controller.deal()
+
+    @Slot(int, int, int, result="QStringList")
+    def blindPreview(self, small_blind: int, big_blind: int, levels: int) -> list[str]:
+        """The first ``levels`` blind levels, e.g. ["10/20", "20/40", ...]."""
+        return [f"{sb:,}/{bb:,}" for sb, bb in (blinds.blinds_at(level, small_blind, big_blind)
+                                               for level in range(max(0, levels)))]
 
     @Slot()
     def restartSession(self) -> None:
@@ -190,3 +198,17 @@ class GameBridge(QObject):
     @Property(bool, notify=viewChanged)
     def sessionOver(self) -> bool:
         return self._view.session_over
+
+    @Property(int, notify=viewChanged)
+    def blindInterval(self) -> int:
+        """Hands per blind level; 0 when blinds are fixed."""
+        return self._view.blind_interval
+
+    @Property(int, notify=viewChanged)
+    def blindLevel(self) -> int:
+        return self._view.blind_level
+
+    @Property(int, notify=viewChanged)
+    def handsToNextLevel(self) -> int:
+        """Hands left at this level; 0 means the blinds go up next hand."""
+        return self._view.hands_to_next_level
