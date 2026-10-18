@@ -6,13 +6,16 @@ deciding player's own hole cards, never other players' hidden cards.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from typing import Protocol
 
 from poker.actions import Action, LegalActions
 from poker.cards import Card
 from poker.events import PlayerActed, Street
 from poker.hand import HoldemHand
+
+from ai.tendencies import Tendency
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,6 +44,8 @@ class DecisionContext:
     position: int  # 0 = first to act post-flop ... players_in_hand-1 = last (button side)
     effective_stack: int  # smallest of own stack+bet and the largest live opponent stack+bet
     history: tuple[PublicAction, ...]
+    # Public betting habits of every player this session (seat -> Tendency).
+    tendencies: Mapping[int, Tendency] = field(default_factory=dict)
 
     @property
     def to_call(self) -> int:
@@ -52,6 +57,14 @@ class DecisionContext:
         if self.to_call == 0:
             return 0.0
         return self.to_call / (self.pot + self.to_call)
+
+    @property
+    def last_aggressor(self) -> PublicAction | None:
+        """The most recent bet or raise on this street, if any."""
+        return next(
+            (a for a in reversed(self.history) if a.street == self.street and a.action in ("bet", "raise")),
+            None,
+        )
 
     @property
     def raises_this_street(self) -> int:
@@ -66,7 +79,7 @@ class Strategy(Protocol):
     def decide(self, ctx: DecisionContext) -> Action: ...
 
 
-def observe(hand: HoldemHand, seat: int) -> DecisionContext:
+def observe(hand: HoldemHand, seat: int, tendencies: Mapping[int, Tendency] | None = None) -> DecisionContext:
     """Build the information available to ``seat``, which must be the player to act."""
     if hand.to_act != seat:
         raise ValueError(f"Seat {seat} is not to act")
@@ -97,4 +110,5 @@ def observe(hand: HoldemHand, seat: int) -> DecisionContext:
         position=order.index(seat),
         effective_stack=min(me.stack + me.street_bet, largest_opponent),
         history=history,
+        tendencies=dict(tendencies or {}),
     )

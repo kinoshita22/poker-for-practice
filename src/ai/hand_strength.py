@@ -136,3 +136,45 @@ def draws(hole: Sequence[Card], board: Sequence[Card]) -> Draws:
 
 def made_hand_category(hole: Sequence[Card], board: Sequence[Card]) -> HandCategory:
     return evaluate(list(hole) + list(board)).category
+
+
+_RANKED_COMBOS: list[tuple[Card, Card]] | None = None
+
+
+def ranked_combos() -> list[tuple[Card, Card]]:
+    """All 1,326 starting hands, strongest first by pre-flop strength (computed once)."""
+    global _RANKED_COMBOS
+    if _RANKED_COMBOS is None:
+        from itertools import combinations as _combinations
+
+        combos = list(_combinations(FULL_DECK, 2))
+        combos.sort(key=lambda hand: chen_score(hand), reverse=True)
+        _RANKED_COMBOS = combos
+    return _RANKED_COMBOS
+
+
+def equity_vs_range(
+    hole: Sequence[Card],
+    board: Sequence[Card],
+    range_fraction: float,
+    samples: int,
+    rng: random.Random,
+) -> float:
+    """Share of the pot won against one opponent holding the top ``range_fraction`` of hands."""
+    known = set(hole) | set(board)
+    combos = ranked_combos()
+    top = combos[: max(1, round(len(combos) * range_fraction))]
+    candidates = [c for c in top if c[0] not in known and c[1] not in known]
+    if not candidates:
+        return 0.5
+    deck = [c for c in FULL_DECK if c not in known]
+    missing = 5 - len(board)
+    total = 0.0
+    for _ in range(samples):
+        villain = rng.choice(candidates)
+        remaining = [c for c in deck if c not in villain]
+        full_board = list(board) + rng.sample(remaining, missing)
+        mine = evaluate(list(hole) + full_board)
+        theirs = evaluate(list(villain) + full_board)
+        total += 1.0 if mine > theirs else 0.5 if mine == theirs else 0.0
+    return total / samples
