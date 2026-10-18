@@ -18,6 +18,7 @@ ScreenScaffold {
     property int bigBlind: defaults.bigBlind !== undefined ? defaults.bigBlind : 20
     property string opponentStyle: defaults.opponentStyle !== undefined ? defaults.opponentStyle : "mixed"
     property string difficulty: defaults.difficulty !== undefined ? defaults.difficulty : "normal"
+    property int blindIncreaseEvery: defaults.blindIncreaseEvery !== undefined ? defaults.blindIncreaseEvery : 0
 
     function config() {
         return {
@@ -26,7 +27,8 @@ ScreenScaffold {
             smallBlind: bigBlind / 2,
             bigBlind: bigBlind,
             opponentStyle: opponentStyle,
-            difficulty: difficulty
+            difficulty: difficulty,
+            blindIncreaseEvery: blindIncreaseEvery
         }
     }
 
@@ -87,6 +89,19 @@ ScreenScaffold {
                     onActivated: v => root.bigBlind = v
                 }
 
+                FieldLabel { text: "Blinds increase" }
+                SegmentedSelector {
+                    objectName: "blindIncreaseSelector"
+                    options: [
+                        { label: "Never", value: 0 },
+                        { label: "Every 5 hands", value: 5 },
+                        { label: "Every 10", value: 10 },
+                        { label: "Every 20", value: 20 }
+                    ]
+                    value: root.blindIncreaseEvery
+                    onActivated: v => root.blindIncreaseEvery = v
+                }
+
                 FieldLabel { text: "Opponent style" }
                 SegmentedSelector {
                     objectName: "styleSelector"
@@ -124,8 +139,12 @@ ScreenScaffold {
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
-                text: "Starting stack is " + Math.round(root.startingStack / root.bigBlind)
-                      + " big blinds. Chips are virtual and have no monetary value."
+                text: "Starting stack is " + Math.round(root.startingStack / root.bigBlind) + " big blinds. "
+                      + (root.blindIncreaseEvery > 0
+                         ? "Blinds rise every " + root.blindIncreaseEvery + " hands: "
+                           + Game.blindPreview(root.bigBlind / 2, root.bigBlind, 5).join(" \u2192 ") + " \u2192 \u2026 "
+                         : "Blinds stay the same all session. ")
+                      + "Chips are virtual and have no monetary value."
                 font.family: Theme.fontBody
                 font.pixelSize: Theme.fontSizeSmall
                 color: Theme.textMuted

@@ -31,6 +31,7 @@ DEFAULT_SESSION = {
     "bigBlind": 20,
     "opponentStyle": "mixed",
     "difficulty": "normal",
+    "blindIncreaseEvery": 0,
 }
 
 _SESSION_CHOICES = {
@@ -39,6 +40,7 @@ _SESSION_CHOICES = {
     "bigBlind": (10, 20, 50, 100),
     "opponentStyle": ("mixed", "conservative", "balanced", "aggressive"),
     "difficulty": ("easy", "normal", "hard"),
+    "blindIncreaseEvery": (0, 5, 10, 20),
 }
 
 AUTO_DEAL_DELAY_MS = 2500
