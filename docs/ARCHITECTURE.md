@@ -375,3 +375,20 @@ the small blind, so every level is an integer. `GameSession.start_hand()` sets t
 for the next hand before dealing. The view carries the interval, the level of the hand on the table
 and the hands left at that level (counting a hand in progress; 0 = "blinds go up next hand"), which
 the table's top bar displays. Stacks are never topped up: chips are only won or lost.
+
+## Opponents read betting habits
+
+Opponents used to judge every big pre-flop raise as if it came from a strong hand, so a player who
+shoved all-in every hand was almost never called (4 % of shoves) and won steadily.
+
+`ai/tendencies.py` now records each player's *public* pre-flop habits during the session (hands
+dealt, raises, all-ins), as real players notice who keeps shoving. When an opponent faces a big
+pre-flop raise (≥ 12 big blinds, or a call costing ≥ 20 % of its stack) it estimates the raiser's
+range: an unknown deep shover is assumed to hold about the top 6 % of hands, and the estimate moves
+towards the observed all-in frequency (faster on hard, slower on easy). It then compares its equity
+against that range (`equity_vs_range`, sampling from all 1,326 starting hands ranked strongest
+first) with the pot odds, adding a small margin per extra opponent, and calls, re-shoves or folds.
+
+Measured over 80 seeded sessions against three opponents, always shoving went from +425 chips per
+session on average to −583 (bust in 65 of 80 sessions). A first-hand shove is still usually folded
+to, which is correct against an unknown player, but it only wins the blinds.

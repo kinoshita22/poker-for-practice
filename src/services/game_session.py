@@ -12,7 +12,7 @@ import random
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from ai import PassiveStrategy, Strategy, create_strategy, observe
+from ai import PassiveStrategy, Strategy, create_strategy, observe, tendencies
 from poker import Action, ActionType, HoldemHand, IllegalActionError, Table
 from poker.events import HandEvent, PlayerActed
 from services import blinds
@@ -144,6 +144,8 @@ class GameSession:
         self.hand_listeners: list[Callable[[HoldemHand], None]] = []
         # (seat, PlayerActed index, reason) for the current hand's opponent decisions.
         self._reasons: list[tuple[int, int, str]] = []
+        # Public betting habits observed this session (what opponents "remember").
+        self.tendencies: dict[int, tendencies.Tendency] = {}
 
     # ---------------------------------------------------------------- state
 
@@ -253,7 +255,7 @@ class GameSession:
             raise SessionError("No opponent is to act")
         hand = self.hand
         strategy = self.strategies[seat]
-        action = strategy.decide(observe(hand, seat))
+        action = strategy.decide(observe(hand, seat, self.tendencies))
         event_index = len(hand.events)
         reason = getattr(strategy, "last_reason", "")
         try:
@@ -275,6 +277,7 @@ class GameSession:
 
     def _notify_complete(self, hand: HoldemHand) -> None:
         self.table.settle_hand()
+        tendencies.update(self.tendencies, hand.events)
         for listener in self.hand_listeners:
             listener(hand)
 

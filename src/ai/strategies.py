@@ -17,7 +17,8 @@ from poker.actions import Action, ActionType, LegalActions
 from poker.events import Street
 
 from ai.base import DecisionContext
-from ai.hand_strength import draws, equity, preflop_strength
+from ai.hand_strength import draws, equity, equity_vs_range, preflop_strength
+from ai.tendencies import describe_range, estimated_range
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,6 +45,7 @@ class DifficultyProfile:
     uses_position: bool
     uses_pot_odds: bool
     mistake_rate: float  # chance of a passive, sub-optimal choice
+    read_weight: float  # hands of evidence the prior range is worth (lower = adapts faster)
 
 
 STYLES = {
@@ -66,14 +68,17 @@ STYLES = {
 
 DIFFICULTIES = {
     "easy": DifficultyProfile("Easy", noise=0.12, evaluation_budget=240, uses_position=False,
-                              uses_pot_odds=False, mistake_rate=0.12),
+                              uses_pot_odds=False, mistake_rate=0.12, read_weight=12),
     "normal": DifficultyProfile("Normal", noise=0.05, evaluation_budget=480, uses_position=True,
-                                uses_pot_odds=True, mistake_rate=0.04),
+                                uses_pot_odds=True, mistake_rate=0.04, read_weight=6),
     "hard": DifficultyProfile("Hard", noise=0.02, evaluation_budget=800, uses_position=True,
-                              uses_pot_odds=True, mistake_rate=0.0),
+                              uses_pot_odds=True, mistake_rate=0.0, read_weight=4),
 }
 
 SHORT_STACK_BB = 12
+# A pre-flop raise is "big" (worth estimating the raiser's range) at this size or above.
+BIG_RAISE_BB = 12
+BIG_CALL_SHARE = 0.2  # ... or when calling costs this share of the stack
 
 
 @dataclass(frozen=True, slots=True)
@@ -177,6 +182,11 @@ class HeuristicStrategy:
                 return Decision(Action.call() if legal.can_call else Action.check(), f"limp/check ({label})")
             return Decision(Action.check() if legal.can_check else Action.fold(), f"weak hand ({label})")
 
+        aggressor = ctx.last_aggressor
+        big = facing >= BIG_RAISE_BB or legal.call_amount >= BIG_CALL_SHARE * legal.stack
+        if aggressor is not None and big:
+            return self._facing_big_raise(ctx, aggressor)
+
         # Facing a raise: required strength grows with the raise size.
         pressure = 0.07 * math.log2(max(1.0, facing / 2.5)) if facing > 2.5 else 0.0
         reraise = style.raise_threshold + 0.18 + pressure
@@ -188,6 +198,28 @@ class HeuristicStrategy:
         if strength >= call:
             return Decision(Action.call(), f"call raise to {legal.current_bet} ({label})")
         return Decision(Action.fold(), f"fold to raise to {legal.current_bet} ({label})")
+
+    def _facing_big_raise(self, ctx: DecisionContext, aggressor) -> Decision:
+        """Call or re-shove against a large raise using the raiser's likely range.
+
+        The range comes from the raiser's public habits this session: an unknown
+        player shoving deep is assumed to be strong, but someone who shoves
+        every hand is soon called with medium-strong hands.
+        """
+        style, legal = self.style, ctx.legal
+        width = estimated_range(ctx.tendencies.get(aggressor.seat), all_in=aggressor.all_in,
+                                prior_weight=self.difficulty.read_weight)
+        samples = max(60, self.difficulty.evaluation_budget // 2)
+        eq = self._noisy(equity_vs_range(ctx.hole, ctx.board, width, samples, self.rng))
+        # Players still in the hand besides the raiser could also hold strong cards.
+        needed = ctx.pot_odds + style.call_margin + 0.03 * max(0, ctx.opponents_in_hand - 1)
+        label = (f"equity {eq:.0%} against an estimated {describe_range(width)}, "
+                 f"pot odds {ctx.pot_odds:.0%}")
+        if legal.can_raise and eq >= max(0.6, needed + 0.15) and not self._mistake():
+            return Decision(Action.all_in(), f"re-raise all-in: {label}")
+        if eq >= needed:
+            return Decision(Action.call(), f"call big raise: {label}")
+        return Decision(Action.fold(), f"fold to big raise: {label}")
 
     # ---------------------------------------------------------------- post-flop
 
